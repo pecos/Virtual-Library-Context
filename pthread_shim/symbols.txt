@@ -1,0 +1,16 @@
+pthread_create
+pthread_detach
+pthread_attr_setaffinity_np
+pthread_once
+pthread_setaffinity_np
+pthread_setspecific
+pthread_attr_init
+pthread_attr_getstacksize
+pthread_getaffinity_np
+pthread_exit
+pthread_attr_setstacksize
+pthread_key_create
+pthread_self
+pthread_join
+pthread_attr_destroy
+pthread_key_delete
