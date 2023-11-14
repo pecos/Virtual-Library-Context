@@ -11,12 +11,11 @@ extern "C"
 extern const char *const _libpthread_so_0_sym_names[];
 extern void *_libpthread_so_0_tramp_table[];
 
-
 void *dlopen_callback(const char *lib_name) {
     void *lib_handle = NULL;
     // if the file exists, it means this shim is already loaded once, so simply read from the address file
     if (access("address.tmp", F_OK) == 0) {
-        printf("already loaded once.\n")
+        printf("already loaded once.\n");
         // load the address of functions from file
         FILE *address_fp;
         address_fp = fopen("address.tmp", "r");

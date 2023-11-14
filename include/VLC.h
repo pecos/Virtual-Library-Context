@@ -15,6 +15,7 @@
 #include <sys/user.h>
 #include <sys/uio.h>
 #include <sys/prctl.h>
+#include <sys/syscall.h>
 #include <linux/seccomp.h>
 #include <linux/filter.h>
 #include <seccomp.h>
@@ -110,7 +111,7 @@ private:
             // load syscall number
             BPF_STMT(BPF_LD + BPF_W + BPF_ABS, offsetof(struct seccomp_data, nr)),
             // if it is sched_getaffinity(), return TRACE
-            BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, __NR_sched_getaffinity, 0, 1),
+            BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, SYS_sched_getaffinity, 0, 1),
             BPF_STMT(BPF_RET + BPF_K, SECCOMP_RET_TRACE),
             // else, continue the syscall without tracing
             BPF_STMT(BPF_RET + BPF_K, SECCOMP_RET_ALLOW),
@@ -184,7 +185,7 @@ private:
                 }
                 long syscall = regs.orig_rax;
 
-                if (syscall == __NR_sched_getaffinity) {  // capture sys_sched_getaffinity
+                if (syscall == SYS_sched_getaffinity) {  // capture sys_sched_getaffinity
                     forge_sched_getaffinity(regs.rdx);
                 }
             }

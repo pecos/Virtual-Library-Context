@@ -4,20 +4,19 @@
 
 #include <sched.h>
 #include <iostream>
+#include <pthread.h>
 
 #include "VLC.h"
-
 
 int main() {
     // initialize VLC environment
     VLC::Runtime vlc;
     vlc.initialize();
 
-    // Print avaliable cpu
     cpu_set_t mask;
 
-    for (int i = 0; i < 1000000; i++) {
-        if (sched_getaffinity(0, sizeof(cpu_set_t), &mask) == -1) {
+    for (int i = 0; i < 10; i++) {
+        if (pthread_getaffinity_np(0, sizeof(cpu_set_t), &mask) == -1) {
             std::cerr << "APP: unable to determine cpu set, " << strerror(errno) << std::endl;
             std::exit(EXIT_FAILURE);
         }
@@ -31,4 +30,6 @@ int main() {
         }
     }
     std::cout << std::endl;
+
+    return 0;
 }
