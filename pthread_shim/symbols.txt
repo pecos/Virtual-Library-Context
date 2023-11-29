@@ -14,3 +14,9 @@ pthread_self
 pthread_join
 pthread_attr_destroy
 pthread_key_delete
+pthread_barrier_init
+pthread_barrier_wait
+__errno_location
+raise
+waitpid
+wait

@@ -20,11 +20,17 @@
 #include <linux/filter.h>
 #include <seccomp.h>
 #include <sched.h>
+#include <unordered_map>
+#include <cassert>
 
 #ifdef NDEBUG
-#define DEBUG(x) 
+#define DEBUG(...) 
 #else
-#define DEBUG(x) do { std::cerr << "[Debug] " << x << std::endl; } while (0)
+#define DEBUG(...) ({\
+            printf("[DEBUG] ");\
+            printf(__VA_ARGS__);\
+            printf("\n");\
+           })
 #endif
 
 namespace VLC {
@@ -68,20 +74,26 @@ public:
             // this is manager process (parent)
             std::cout << "VLC: manager start." << std::endl;
             application_pid = pid;
+            application_child_states[pid] = ChildState::RUNNING; // itself is also in the list
             determine_resouces();
-
-            // let application terminate along with monitor process
-            ptrace(PTRACE_SETOPTIONS, pid, 0, PTRACE_O_EXITKILL);
 
             // wait on application seccomp bpf configuration
             int status;
-            if (wait(&status) == -1) {
+            if (waitpid(-1, &status, __WALL) == -1) {
                 std::cerr << "VLC: unable to intercept syscall, " << strerror(errno) << std::endl;
                 std::exit(EXIT_FAILURE);
             }
-            // trace on seccomp signal
-            ptrace(PTRACE_SETOPTIONS, application_pid, 0, PTRACE_O_TRACESECCOMP);
-            ptrace(PTRACE_CONT, application_pid, 0, 0);
+
+            // let application terminate along with monitor process
+            if (ptrace(PTRACE_SETOPTIONS, pid, 0, PTRACE_O_EXITKILL | PTRACE_O_TRACEFORK | PTRACE_O_TRACECLONE | PTRACE_O_TRACESECCOMP) == -1) {
+                std::cerr << "VLC: unable to config tracer 1." << std::endl;
+                std::exit(EXIT_FAILURE);
+            }
+
+            if (ptrace(PTRACE_CONT, application_pid, 0, 0) == -1) {
+                std::cerr << "VLC: unable to config tracer 5." << std::endl;
+                std::exit(EXIT_FAILURE);
+            }
 
             // start monitoring the application
             intercept_syscall();
@@ -92,10 +104,14 @@ public:
     }
 
 private:
+    enum ChildState {NEW_STOPPED, NEW_FORKED, RUNNING};
+
     cpu_set_t system_cpu_set;
     cpu_set_t virtual_cpu_set;
     bool virtual_cpu_set_is_set = false;
     pid_t application_pid = 0;
+    std::unordered_map<pid_t, ChildState> application_child_states;  // map of child to states of the application process (including itself)
+    int forge_sched_getaffinity_count = 0;
 
     /**
      * Configure a BPF filter for ptrace + seccomp.
@@ -157,48 +173,122 @@ private:
     void intercept_syscall() {
         int status;
         while (true) {
-            if (wait(&status) == -1) {
+            pid_t child_waited = waitpid(-1, &status, __WALL);
+            if (child_waited == -1) {
                 std::cerr << "VLC: unable to intercept syscall, " << strerror(errno) << std::endl;
                 std::exit(EXIT_FAILURE);
             }
             
-            DEBUG("VLC: stop application.");
+            DEBUG("VLC: stop application, pid=%d.", child_waited);
+
+            // if haven't seen this pid before
+            if (application_child_states.find(child_waited) == application_child_states.end()) {
+                // if this is a SIGSTOP event (a new child is stopped at begin)
+                if (WIFSTOPPED(status) && WSTOPSIG(status) == SIGSTOP) {
+                    DEBUG("VLC: a child is stopped after created, pid=%d", child_waited);
+                    application_child_states[child_waited] = ChildState::NEW_STOPPED;
+                    continue;
+                } else {
+                    std::cerr << "VLC: found unknown process/thread which is not traced, pid=" << child_waited << std::endl;
+                    std::exit(EXIT_FAILURE);
+                }
+            }
 
             // stopped on seccomp signal
             if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_SECCOMP << 8))) {
                 // we alreay at the syscall entry point,
                 // so continue until syscall exit
-                if (ptrace(PTRACE_SYSCALL, application_pid, 0, 0) == -1)  {
+                if (ptrace(PTRACE_SYSCALL, child_waited, 0, 0) == -1)  {
                     std::cerr << "VLC: unable to intercept syscall, " << strerror(errno) << std::endl;
                     std::exit(EXIT_FAILURE);
                 }
-                if (wait(&status) == -1) {
+                if (waitpid(child_waited, &status, 0) == -1) {
                     std::cerr << "VLC: unable to intercept syscall, " << strerror(errno) << std::endl;
                     std::exit(EXIT_FAILURE);
                 }
                 
                 // retrive syscall arguments
                 user_regs_struct regs;
-                if (ptrace(PTRACE_GETREGS, application_pid, 0, &regs) == -1) {
+                if (ptrace(PTRACE_GETREGS, child_waited, 0, &regs) == -1) {
                     std::cerr << "VLC: unable to intercept syscall, " << strerror(errno) << std::endl;
                     std::exit(EXIT_FAILURE);
                 }
                 long syscall = regs.orig_rax;
 
                 if (syscall == SYS_sched_getaffinity) {  // capture sys_sched_getaffinity
-                    forge_sched_getaffinity(regs.rdx);
+                    if (forge_sched_getaffinity_count < 2) {
+                        forge_sched_getaffinity_count++;
+                    } else {
+                        forge_sched_getaffinity(regs.rdx);
+                    }
                 }
-            }
+            } else if ((status >> 8 == (SIGTRAP | (PTRACE_EVENT_CLONE << 8))) ||
+                (status >> 8 == (SIGTRAP | (PTRACE_EVENT_FORK << 8)))) {
+                // child called a clone (create a new child)
+                // need to trace the new child
+                pid_t new_child;
+                if (ptrace(PTRACE_GETEVENTMSG, child_waited, 0, &new_child) == -1) {
+                    std::cerr << "VLC: unable to retrive new child pid, " << strerror(errno) << std::endl;
+                    std::exit(EXIT_FAILURE);
+                }
 
-            if (WIFEXITED(status) || WIFSIGNALED(status)) {
+                DEBUG("VLC: a new child process/thread is created, pid=%d", new_child);
+
+                // if the pid is first seen
+                if (application_child_states.find(new_child) == application_child_states.end()) {
+                    application_child_states[new_child] = ChildState::NEW_FORKED;
+                } else {
+                    // if the child stop event is already caputured
+                    assert(application_child_states[new_child] == ChildState::NEW_STOPPED && "Child state invalid");
+                
+                    // trace and let child continue
+                    if (ptrace(PTRACE_SETOPTIONS, new_child, 0, PTRACE_O_TRACEFORK | PTRACE_O_TRACECLONE | PTRACE_O_TRACESECCOMP | PTRACE_O_EXITKILL) == -1) {
+                        std::cerr << "VLC: unable to config tracer 6, pid=" << new_child << ", " << strerror(errno) << std::endl;
+                        std::exit(EXIT_FAILURE);
+                    }
+
+                    DEBUG("VLC: child is traced and resumed, pid=%d", new_child);
+
+                    application_child_states[new_child] == ChildState::RUNNING;
+                    if (ptrace(PTRACE_CONT, new_child, 0, 0) == -1) {
+                        std::cerr << "VLC: unable to config tracer 8." << std::endl;
+                        std::exit(EXIT_FAILURE);
+                    }
+                }
+            } else if (WIFSTOPPED(status) && WSTOPSIG(status) == SIGSTOP) {
+                // a child is stopped after created, and fork event already recived
+                assert(application_child_states[child_waited] == ChildState::NEW_FORKED && "Child state is invalid");
+                
+                // trace and let child continue
+                if (ptrace(PTRACE_SETOPTIONS, child_waited, 0, PTRACE_O_TRACEFORK | PTRACE_O_TRACECLONE | PTRACE_O_TRACESECCOMP | PTRACE_O_EXITKILL) == -1) {
+                    std::cerr << "VLC: unable to config tracer 6, " << strerror(errno) << std::endl;
+                    std::exit(EXIT_FAILURE);
+                }
+
+                DEBUG("VLC: child is traced and resumed, pid=%d", child_waited);
+
+                // CONT will be sent after the if block
+                application_child_states[child_waited] == ChildState::RUNNING;
+            } else if (WIFEXITED(status) || WIFSIGNALED(status)) {
                 // child has exited or terminated
-                std::cout << "VLC: manager exit." << std::endl;
-                break;
+                application_child_states.erase(child_waited);
+                DEBUG("VLC: a child process exit, pid=%d", child_waited);
+
+                if (application_child_states.size() == 0) {
+                    std::cout << "VLC: manager exit since application has exited (NOT A ERROR)." << std::endl;
+                    break;
+                } 
+
+                // child already exist, skip the rest 
+                continue; 
+            } else {
+                std::cerr << "VLC: stop on an unknown event " << status << ", pid=" << child_waited << std::endl;
+                std::exit(EXIT_FAILURE);
             }
 
             // continue until next seccomp signal
-            if (ptrace(PTRACE_CONT, application_pid, 0, 0) == -1) {
-                std::cerr << "VLC: unable to intercept syscall, " << strerror(errno) << std::endl;
+            if (ptrace(PTRACE_CONT, child_waited, 0, 0) == -1) {
+                std::cerr << "VLC: unable to continue the application, pid=" << child_waited << ", " << strerror(errno) << std::endl;
                 std::exit(EXIT_FAILURE);
             }
         }
