@@ -4,7 +4,7 @@
 #include <chrono>
 #include "summp.h"
 
-const int REPEAT = 100;
+const int REPEAT = 1000;
 const int NUM_CORE = 48;
 
 #define COUNT_CORE  // if define, will print thread mapping bitmap
@@ -12,8 +12,6 @@ const int NUM_CORE = 48;
 
 int sum(std::vector<int> &v) {
     int num_items = v.size();
-    int num_threads = 48;
-    int batch_size = num_items / num_threads;
 
     int th_id;
     int partial_sum = 0;
@@ -29,6 +27,8 @@ int sum(std::vector<int> &v) {
     {   
         // printf("summp: cpu_id: %d\n", sched_getcpu());
         th_id = omp_get_thread_num();
+        int num_threads = omp_get_num_threads();
+        int batch_size = num_items / num_threads;
 
         #ifdef BIND_CORE
         // bind thread to core manually
@@ -48,13 +48,6 @@ int sum(std::vector<int> &v) {
             for (int i = 0; i < batch_size; i++) {
                 partial_sum += v[th_id * batch_size + i];
             }
-            // #ifdef COUNT_CORE
-            // int new_id = sched_getcpu();
-            // if (last_core_id != sched_getcpu()) {
-            //     printf("%d -> %d\n", last_core_id, new_id);
-            //     last_core_id = new_id;
-            // }
-            // #endif
         }
 
         #ifdef COUNT_CORE

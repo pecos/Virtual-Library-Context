@@ -1,5 +1,5 @@
 CXX=g++
-# NO_DEBUG=-DNDEBUG
+NO_DEBUG=-DNDEBUG
 CFLAGS=-I./include -I../../include -g -std=c++11 $(NO_DEBUG)
 
 libaddmp.so: src/addmp.cpp
@@ -12,6 +12,10 @@ libsummp.so: src/summp.cpp
 
 launcher: src/launcher.cpp libaddmp.so libsummp.so ../../include/VLC.h
 	$(CXX) $(CFLAGS) -o $@ $< -Wl,--undefined=__pthread_create -pthread -fopenmp -ldl
+
+launcher_novlc: src/launcher_novlc.cpp src/addmp.cpp src/summp.cpp
+	$(CXX) $(CFLAGS) -o $@ $< src/addmp.cpp src/summp.cpp -pthread -fopenmp
+
 
 clean:
 	rm -f libaddmp.so libsummp.so launcher

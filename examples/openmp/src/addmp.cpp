@@ -4,7 +4,7 @@
 #include <chrono>
 #include "addmp.h"
 
-const int REPEAT = 40;
+const int REPEAT = 400;
 const int NUM_CORE = 48;
 
 #define COUNT_CORE  // if define, will print thread mapping bitmap
@@ -12,8 +12,6 @@ const int NUM_CORE = 48;
 
 std::vector<int> add(std::vector<int> &first, std::vector<int> &second) {
     int num_items = first.size();
-    int num_threads = 48;
-    int batch_size = num_items / num_threads;
 
     int th_id;
     std::vector<int> result(num_items);
@@ -28,6 +26,8 @@ std::vector<int> add(std::vector<int> &first, std::vector<int> &second) {
     {   
         // printf("addmp: cpu_id: %d\n", sched_getcpu());
         th_id = omp_get_thread_num();
+        int num_threads = omp_get_num_threads();
+        int batch_size = num_items / num_threads;
 
         #ifdef BIND_CORE
         // bind thread to core manually
@@ -51,13 +51,6 @@ std::vector<int> add(std::vector<int> &first, std::vector<int> &second) {
             for (int i = 0; i < batch_size; i++) {
                 result[th_id * batch_size + i] = first[th_id * batch_size + i] + second[th_id * batch_size + i];
             }
-            // #ifdef COUNT_CORE
-            // int new_id = sched_getcpu();
-            // if (last_core_id != sched_getcpu()) {
-            //     printf("%d -> %d\n", last_core_id, new_id);
-            //     last_core_id = new_id;
-            // }
-            // #endif
         }
 
         #ifdef COUNT_CORE
