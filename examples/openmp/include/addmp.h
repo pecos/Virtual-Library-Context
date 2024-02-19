@@ -2,6 +2,6 @@
 #define ADDMP_H
 #include <vector>
 
-std::vector<int> add(std::vector<int> &first, std::vector<int> &second);
+int add(std::vector<int> *first, std::vector<int> *second, std::vector<int> *result);
 
 #endif

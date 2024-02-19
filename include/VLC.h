@@ -36,6 +36,7 @@
 // this variable will has same address on Manager and Application processes
 static const char FORGED_CPU_FOLDER[] = "/home/yyan/cpu";
 static const char FORGED_CPU_ONLINE_FILE[] = "/home/yyan/cpu/online";
+static const char FORGED_CPU_INFO_FILE[] = "/home/yyan/cpuinfo";
 
 namespace VLC {
 
@@ -94,8 +95,9 @@ public:
                 std::exit(EXIT_FAILURE);
             }
 
+            std::cout << "VLC: resume application, pid=" << application_pid << std::endl;
             if (ptrace(PTRACE_CONT, application_pid, 0, 0) == -1) {
-                std::cerr << "VLC: unable to config tracer 5." << std::endl;
+                std::cerr << "VLC: unable to resume application." << std::endl;
                 std::exit(EXIT_FAILURE);
             }
 
@@ -278,7 +280,7 @@ private:
 
                     DEBUG("VLC: child is traced and resumed, pid=%d", new_child);
 
-                    application_child_states[new_child] == ChildState::RUNNING;
+                    application_child_states[new_child] = ChildState::RUNNING;
                     if (ptrace(PTRACE_CONT, new_child, NULL, NULL) == -1) {
                         std::cerr << "VLC: unable to config tracer 8." << std::endl;
                         std::exit(EXIT_FAILURE);
@@ -297,12 +299,20 @@ private:
                 DEBUG("VLC: child is traced and resumed, pid=%d", child_waited);
 
                 // CONT will be sent after the if block
-                application_child_states[child_waited] == ChildState::RUNNING;
+                application_child_states[child_waited] = ChildState::RUNNING;
             } else if (WIFEXITED(status) || WIFSIGNALED(status)) {
+                if (WIFEXITED(status)) {
+                    DEBUG("VLC: child exit with status %d, pid=%d", WEXITSTATUS(status), child_waited);
+                }
+
+                if (WIFSIGNALED(status)) {
+                    DEBUG("VLC: child terminated by signal %d (%s) %s, pid=%d", WTERMSIG(status), strsignal(WTERMSIG(status)), 
+                        (WCOREDUMP(status) ? " (core dumped)" : ""), child_waited);
+                }
+
                 // child has exited or terminated
                 application_child_states.erase(child_waited);
-                DEBUG("VLC: a child process exit, pid=%d", child_waited);
-
+                
                 if (application_child_states.size() == 0) {
                     std::cout << "VLC: manager exit since application has exited (NOT A ERROR)." << std::endl;
                     break;
@@ -311,7 +321,16 @@ private:
                 // child already exist, skip the rest 
                 continue; 
             } else {
-                std::cerr << "VLC: stop on an unknown event " << status << ", pid=" << child_waited << std::endl;
+               if (WIFSTOPPED(status)) {
+                    std::cerr << "VLC: stopped by signal " << WSTOPSIG(status) << " (" << strsignal(WSTOPSIG(status)) 
+                    << "), pid=" << child_waited << std::endl;
+                }
+                else if (WIFCONTINUED(status)) {
+                    std::cerr << "VLC: continued , pid=" << child_waited << std::endl;
+                } else {
+                    std::cerr << "VLC: stop on an unknown status " << status << ", pid=" << child_waited << std::endl;
+                }
+
                 std::exit(EXIT_FAILURE);
             }
 
@@ -335,31 +354,49 @@ private:
     void forge_sched_getaffinity(pid_t pid, unsigned int len, unsigned long long user_mask_ptr) {
         // TODO: add policy here
         // make a virtual cpu affinity
-        DEBUG("VLC: len=%d.", len);
-
         if (virtual_cpu_sets.find(pid) == virtual_cpu_sets.end()) {
             cpu_set_t virtual_cpu_set = system_cpu_set;
             
-            // if (virtual_cpu_sets.size() % 2 == 0) {
-            //     for (int i = 0; i < 48; i++) {
-            //         if (i % 2 == 0) {
-            //             CPU_CLR(i, &virtual_cpu_set);
-            //         }
-            //     }
-            // } else {
-            //     for (int i = 0; i < 48; i++) {
-            //         if (i % 2 != 0) {
-            //             CPU_CLR(i, &virtual_cpu_set);
-            //         }
-            //     }
+            // int num_group = 4;
+            // int num_th_per_group = (64 / num_group);
+            // int offset = virtual_cpu_sets.size() % num_group * num_th_per_group;
+            
+            // CPU_ZERO(&virtual_cpu_set);
+            // for (int i = offset; i < offset + num_th_per_group; i++) {
+            //     CPU_SET(i, &virtual_cpu_set);
             // }
-            if (virtual_cpu_sets.size() % 2 == 0) {
-                for (int i = 0; i < 24; i++) {
-                    CPU_CLR(i, &virtual_cpu_set);
+
+            if (virtual_cpu_sets.size() == 0) {
+                CPU_ZERO(&virtual_cpu_set);
+                for (int i = 0; i < 8; i++) {
+                    CPU_SET(i, &virtual_cpu_set);
+                }
+                for (int i = 32; i < 40; i++) {
+                    CPU_SET(i, &virtual_cpu_set);
+                }
+            } else if (virtual_cpu_sets.size() == 1) {
+                CPU_ZERO(&virtual_cpu_set);
+                for (int i = 16; i < 24; i++) {
+                    CPU_SET(i, &virtual_cpu_set);
+                }
+                for (int i = 48; i < 56; i++) {
+                    CPU_SET(i, &virtual_cpu_set);
+                }
+            } else if (virtual_cpu_sets.size() == 2) {
+                CPU_ZERO(&virtual_cpu_set);
+                for (int i = 8; i < 16; i++) {
+                    CPU_SET(i, &virtual_cpu_set);
+                }
+                for (int i = 40; i < 48; i++) {
+                    CPU_SET(i, &virtual_cpu_set);
                 }
             } else {
-                for (int i = 24; i < 48; i++) {
-                    CPU_CLR(i, &virtual_cpu_set);
+                CPU_ZERO(&virtual_cpu_set);
+                for (int i = 24; i < 32; i++) {
+                    CPU_SET(i, &virtual_cpu_set);
+                }
+                for (int i = 56; i < 64; i++) {
+                    CPU_SET(i, &virtual_cpu_set);
                 }
             }
 
@@ -402,7 +439,10 @@ private:
             *filename_ptr = (unsigned long long) FORGED_CPU_FOLDER;
         } else if (strcmp(filename_str, "/sys/devices/system/cpu/online") == 0) {
             *filename_ptr = (unsigned long long) FORGED_CPU_ONLINE_FILE;
+        } else if (strcmp(filename_str, "/proc/cpuinfo") == 0) {
+            *filename_ptr = (unsigned long long) FORGED_CPU_INFO_FILE;
         } else {
+            free(filename_str);
             return;
         }
 
@@ -429,7 +469,7 @@ private:
         }
 
         while (true) {
-            if (read + sizeof(unsigned long long) > allocated) {
+            if (read + (int) sizeof(unsigned long long) > allocated) {
                 allocated *= 2;
                 str = (char *) realloc(str, allocated);
                 if (!str) {

@@ -8,12 +8,12 @@
 #include <chrono>
 #include <pthread.h>
 #include <dlfcn.h>
-#include <omp.h>
-#include "addmp.h"
-#include "summp.h"
-#include "powermp.h"
 #include <unistd.h>
 #include <fstream>
+
+#include "VLC.h"
+
+typedef int (*test_t)();
 
 pthread_barrier_t barrier;
 
@@ -33,45 +33,42 @@ static void print_mem_info() {
    std::cout << "Private Memory - " << rss - shared_mem << "kB\n";
 }
 
-void launch0(std::vector<int> first, int tag) {
-   std::cout << "thread 0 begin!" << std::endl;
+void launch(int tag) {
+   std::cout << "thread " << tag << " begin!" << std::endl;
 
-   printf("%d: sum() starts\n", tag);
-   sum(first);
+   void *handle = dlmopen(LM_ID_NEWLM, "libtestgalois.so", RTLD_NOW);
+   if (handle == NULL) {
+      fprintf(stderr, "Error in `dlmopen`: %s\n", dlerror());
+      return;
+   }
+
+   printf("%d: try dlsym\n", tag);
+   test_t test = (test_t) dlsym(handle, "_Z4testv");
+   if (test == NULL) {
+      fprintf(stderr, "Error in `dlsym`: %s\n", dlerror());
+      printf("quit\n");
+      return;
+   }
+
+   printf("%d: load test() from ./libtestgalois.so\n", tag);
+
+   printf("%d: test() starts\n", tag);
+   test();
    
    printf("%d: quit\n", tag);
-   pthread_barrier_wait(&barrier);
-}
-
-void launch1(std::vector<int> *first, std::vector<int> *second, int tag) {
-   std::cout << "thread 1 begin!" << std::endl;
-
-   printf("%d: add() starts\n", tag);
-   std::vector<int> result(first->size());
-   add(first, second, &result);
-
-   printf("%d: quit\n", tag);
-   pthread_barrier_wait(&barrier);
-}
-
-void launch2(int times, int tag) {
-   std::cout << "thread 0 begin!" << std::endl;
-
-   printf("%d: power() starts\n", tag);
-   power(times);
    
-   printf("%d: quit\n", tag);
+   // BUG: openmp destruct will let main process quit too
    pthread_barrier_wait(&barrier);
+   // dlclose(handle);
 }
 
 int main() {
+   // initialize VLC environment
+   VLC::Runtime vlc;
+   vlc.initialize();
+
    std::cout << "Begin!" << std::endl;
-   int size = 12000000;
-
-   std::vector<int> v1(size, 1);
-   std::vector<int> v2(size, 1);
-
-   int num_work = 4;
+   int num_work = 2;
 
    pthread_barrier_init(&barrier, NULL, num_work);
    std::cout << "pthread_barrier_init!" << std::endl;
@@ -80,8 +77,8 @@ int main() {
    std::cout << "declare thread!" << std::endl;
 
    for (int i = 0; i < num_work; i++) {
-      t[i] = std::thread(launch1, &v1, &v2, i);
-      std::cout << "launched thread 1!" << std::endl;
+      t[i] = std::thread(launch, i);
+      std::cout << "launched thread" << i << std::endl;
    }
 
    for (int i = 0; i < num_work; i++) {

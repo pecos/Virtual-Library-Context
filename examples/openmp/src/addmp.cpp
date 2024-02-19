@@ -3,18 +3,36 @@
 #include <omp.h>
 #include <chrono>
 #include "addmp.h"
+#include <unistd.h>
+#include <fstream>
+#include <thread>
+
+static void print_mem_info() {
+   int tSize = 0, resident = 0, share = 0;
+   std::ifstream buffer("/proc/self/statm");
+   buffer >> tSize >> resident >> share;
+   buffer.close();
+
+   long page_size_kb = sysconf(_SC_PAGE_SIZE) / 1024; // in case x86-64 is configured to use 2MB pages
+   double rss = resident * page_size_kb;
+   std::cout << "RSS - " << rss << " kB\n";
+
+   double shared_mem = share * page_size_kb;
+   std::cout << "Shared Memory - " << shared_mem << " kB\n";
+
+   std::cout << "Private Memory - " << rss - shared_mem << "kB\n";
+}
 
 const int REPEAT = 400;
-const int NUM_CORE = 48;
+const int NUM_CORE = 64;
 
 #define COUNT_CORE  // if define, will print thread mapping bitmap
 // #define BIND_CORE   // if define, will bind thread to core
 
-std::vector<int> add(std::vector<int> &first, std::vector<int> &second) {
-    int num_items = first.size();
+int add(std::vector<int> *first, std::vector<int> *second, std::vector<int> *result) {
+    int num_items = first->size();
 
     int th_id;
-    std::vector<int> result(num_items);
 
     #ifdef COUNT_CORE
     std::vector<int> core_count(NUM_CORE, 0);
@@ -43,13 +61,9 @@ std::vector<int> add(std::vector<int> &first, std::vector<int> &second) {
         core_count[last_core_id] += 1;
         #endif
 
-        for (int i = 0; i < batch_size; i++) {
-            result[th_id * batch_size + i] = first[th_id * batch_size + i] + second[th_id * batch_size + i];
-        }
-
-        for (int j = 1; j < REPEAT; j++) {
+        for (int j = 0; j < REPEAT; j++) {
             for (int i = 0; i < batch_size; i++) {
-                result[th_id * batch_size + i] = first[th_id * batch_size + i] + second[th_id * batch_size + i];
+                (*result)[th_id * batch_size + i] = (*first)[th_id * batch_size + i] + (*second)[th_id * batch_size + i];
             }
         }
 
@@ -75,5 +89,48 @@ std::vector<int> add(std::vector<int> &first, std::vector<int> &second) {
     std::cout << std::endl;
     #endif
 
-    return result;
+    print_mem_info();
+    return 0;
 }
+
+// std::vector<int> *global_first;
+// std::vector<int> *global_second;
+// std::vector<int> *global_result;
+
+// int task(int th_id, int batch_size) {
+//     for (int j = 0; j < REPEAT; j++) {
+//         for (int i = 0; i < batch_size; i++) {
+//            (*global_result)[th_id * batch_size + i] = (*global_first)[th_id * batch_size + i] + (*global_second)[th_id * batch_size + i];
+//         }
+//     }
+//     return 0;
+// }
+
+// int add(std::vector<int> *first, std::vector<int> *second, std::vector<int> *result) {
+//     std::cout << "begin" << std::endl;
+
+//     int num_items = first->size();
+
+//     int num_threads = 48;
+
+//     std::vector<std::thread> t(num_threads);
+
+//     global_first = first;
+//     global_second = second;
+//     global_result = result;
+
+//     int batch_size = num_items / num_threads;
+
+//     auto t1 = std::chrono::high_resolution_clock::now();
+//     for (int i = 0; i < num_threads; i++) {
+//         t[i] = std::thread(task, i, batch_size);
+//     }
+
+//     for (int i = 0; i < num_threads; i++) {
+//         t[i].join();
+//     }
+//     auto t2 = std::chrono::high_resolution_clock::now();
+
+//     // print_mem_info();
+//     return 0;
+// }
