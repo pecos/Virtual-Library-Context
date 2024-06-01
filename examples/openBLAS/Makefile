@@ -13,6 +13,9 @@ matmul_launcher: src/matmul_launcher.cpp libmatmul.so ../../include/VLC/runtime.
 matmul_launcher_seq: src/matmul_launcher_seq.cpp src/matmul.cpp include/matmul.h
 	$(CXX) $(CFLAGS) -o $@ $^ -lopenblas64
 
+matmul_launcher_multithread: src/matmul_launcher_multithread.cpp src/matmul.cpp include/matmul.h
+	$(CXX) $(CFLAGS) -o $@ $^ -lopenblas64
+
 with_openmp_seq: src/openmp_contention/with_openmp_seq.cpp
 	$(CXX) $(CFLAGS) -o $@ $^ -lopenblas64 -fopenmp
 

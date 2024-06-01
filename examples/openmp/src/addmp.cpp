@@ -6,6 +6,8 @@
 #include <unistd.h>
 #include <fstream>
 #include <thread>
+#include <stdio.h>
+#include <string.h>
 
 static void print_mem_info() {
    int tSize = 0, resident = 0, share = 0;
@@ -29,9 +31,7 @@ const int NUM_CORE = 64;
 #define COUNT_CORE  // if define, will print thread mapping bitmap
 // #define BIND_CORE   // if define, will bind thread to core
 
-int add(std::vector<int> *first, std::vector<int> *second, std::vector<int> *result) {
-    int num_items = first->size();
-
+int add(int *first, int *second, int *result, int num_items) {
     int th_id;
 
     #ifdef COUNT_CORE
@@ -63,7 +63,7 @@ int add(std::vector<int> *first, std::vector<int> *second, std::vector<int> *res
 
         for (int j = 0; j < REPEAT; j++) {
             for (int i = 0; i < batch_size; i++) {
-                (*result)[th_id * batch_size + i] = (*first)[th_id * batch_size + i] + (*second)[th_id * batch_size + i];
+                result[th_id * batch_size + i] = first[th_id * batch_size + i] + second[th_id * batch_size + i];
             }
         }
 

@@ -12,10 +12,6 @@ void matmul(int N)
 
     cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, N, N, N, 1, A, N, B, N, 0, C, N);
 
-    for (int i = 0; i < 9; i++)
-        printf("%lf ", C[i]);
-    printf("\n");
-
     free(A);
     free(B);
     free(C);

@@ -11,10 +11,12 @@
 #include <omp.h>
 #include <unistd.h>
 #include <fstream>
+#include <sys/mman.h>
+#include <algorithm>
 
-#include "VLC.h"
+#include "VLC/runtime.h"
 
-typedef int (*add_t)(std::vector<int> *, std::vector<int> *, std::vector<int> *); 
+typedef int (*add_t)(int *, int *, int *, int); 
 typedef int (*sum_t)(std::vector<int> &);
 typedef int (*power_t)(int);
 
@@ -68,7 +70,7 @@ void launch0(std::vector<int> first, int tag) {
    // dlclose(handle);
 }
 
-void launch1(std::vector<int> *first, std::vector<int> *second, int tag) {
+void launch1(int tag) {
    std::cout << "thread 1 begin!" << std::endl;
    // std::this_thread::sleep_for(std::chrono::seconds(5));
    pthread_t tid = pthread_self();
@@ -81,7 +83,7 @@ void launch1(std::vector<int> *first, std::vector<int> *second, int tag) {
    }
    
    printf("%d: try dlsym\n", tag);
-   add_t add = (add_t) dlsym(handle, "_Z3addPSt6vectorIiSaIiEES2_S2_");
+   add_t add = (add_t) dlsym(handle, "_Z3addPiS_S_i");
 
    if (add == NULL) {
       fprintf(stderr, "Error in `dlsym`: %s\n", dlerror());
@@ -92,8 +94,18 @@ void launch1(std::vector<int> *first, std::vector<int> *second, int tag) {
    printf("%d: load add() from ./libaddmp.so\n", tag);
 
    printf("%d: add() starts\n", tag);
-   std::vector<int> result(first->size());
-   add(first, second, &result);
+   int size = 12000000;
+   int * v1 = (int *) mmap(NULL, size * sizeof(int), PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
+   int * v2 = (int *) mmap(NULL, size * sizeof(int), PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
+   int * result = (int *) mmap(NULL, size * sizeof(int), PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
+
+   v1[0] = 1;
+   v2[1] = 1;
+   memcpy(&v1[1], &v1[0], (size - 1) * sizeof(int));
+   memcpy(&v2[1], &v2[0], (size - 1) * sizeof(int));
+   mprotect(v1, size * sizeof(int), PROT_READ);
+   mprotect(v2, size * sizeof(int), PROT_READ);
+   add(v1, v2, result, size);
    
    printf("%d: quit\n", tag);
    
@@ -143,9 +155,6 @@ int main() {
    printf("My 2 pid:%d\n", getpid());
 
    std::cout << "Begin!" << std::endl;
-   int size = 12000000;
-   std::vector<int> v1(size, 1);
-   std::vector<int> v2(size, 1);
 
    int num_lib = 4;
 
@@ -156,7 +165,7 @@ int main() {
    std::cout << "declare thread!" << std::endl;
 
    for (int i = 0; i < num_lib; i++) {
-      t[i] = std::thread(launch1, &v1, &v2, i);
+      t[i] = std::thread(launch1, i);
       std::cout << "launched work " << i << std::endl;
    }
 

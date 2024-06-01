@@ -8,7 +8,7 @@
 extern "C"
 #endif
 
-extern const char *const _libpthread_so_0_sym_names[];
+extern const char *const sym_names[];
 extern void *_libpthread_so_0_tramp_table[];
 
 void *dlopen_callback(const char *lib_name) {
@@ -48,7 +48,7 @@ void *dlopen_callback(const char *lib_name) {
         size_t i = 0;
         const char * read;
 
-        while ((read = _libpthread_so_0_sym_names[i]) != 0) {
+        while ((read = sym_names[i]) != 0) {
             void *func_addr = dlsym(lib_handle, read);
             _libpthread_so_0_tramp_table[i] = func_addr;
             fprintf(address_fp, "%p\n", func_addr);

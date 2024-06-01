@@ -11,7 +11,8 @@
 #include <unistd.h>
 #include <fstream>
 
-#include "VLC.h"
+#include "VLC/runtime.h"
+#include "VLC/loader.h"
 
 typedef int (*test_t)();
 

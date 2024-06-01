@@ -11,7 +11,7 @@ int main() {
     auto t1 = std::chrono::high_resolution_clock::now();
     matmul(N);
         
-    for (int i = 0; i < 36; i++) {  // 8 smaller matmul
+    for (int i = 0; i < 20; i++) {  // 8 smaller matmul
         matmul(N / 8);
     }
     auto t2 = std::chrono::high_resolution_clock::now();

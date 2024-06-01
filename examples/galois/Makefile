@@ -10,7 +10,7 @@ libtestgalois.so: src/testgalois.cpp
 libbfsgalois.so: src/bfs.cpp
 	$(CXX) $(CFLAGS) -shared -o $@ $< -lgalois_shmem -pthread -lnuma -fPIC
 
-launcher: src/launcher.cpp libtestgalois.so ../../include/VLC.h
+launcher: src/launcher.cpp libtestgalois.so ../../include/VLC/runtime.h
 	$(CXX) $(CFLAGS) -o $@ $< -pthread -ldl
 
 launcher_novlc: src/launcher_novlc.cpp src/testgalois.cpp
@@ -19,5 +19,15 @@ launcher_novlc: src/launcher_novlc.cpp src/testgalois.cpp
 launcher_single: src/launcher_single.cpp libtestgalois.so
 	$(CXX) $(CFLAGS) -o $@ $< -ldl
 
-bfs_launcher: src/bfs_launcher.cpp libbfsgalois.so ../../include/VLC.h
-	$(CXX) $(CFLAGS) -o $@ $< -lgalois_shmem -pthread -ldl 
+bfs_launcher: src/bfs_launcher.cpp libbfsgalois.so ../../include/VLC/runtime.h
+	$(CXX) $(CFLAGS) -o $@ $< -lgalois_shmem -pthread -ldl
+
+bfs_launcher_novlc: src/bfs_launcher_novlc.cpp libbfsgalois.so
+	$(CXX) $(CFLAGS) -o $@ $< -lgalois_shmem -pthread -ldl
+
+
+initialize_time_vlc: src/initialize_time/vlc.cpp  libbfsgalois.so ../../include/VLC/runtime.h
+	$(CXX) $(CFLAGS) -o $@ $<
+
+initialize_time_base: src/initialize_time/base.cpp  libbfsgalois.so
+	$(CXX) $(CFLAGS) -o $@ $< -L./ -lgalois_shmem -lbfsgalois 

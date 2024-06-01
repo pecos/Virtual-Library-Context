@@ -14,6 +14,7 @@
 #include "powermp.h"
 #include <unistd.h>
 #include <fstream>
+#include <sys/mman.h>
 
 pthread_barrier_t barrier;
 
@@ -43,12 +44,17 @@ void launch0(std::vector<int> first, int tag) {
    pthread_barrier_wait(&barrier);
 }
 
-void launch1(std::vector<int> *first, std::vector<int> *second, int tag) {
+void launch1(int tag) {
    std::cout << "thread 1 begin!" << std::endl;
 
    printf("%d: add() starts\n", tag);
-   std::vector<int> result(first->size());
-   add(first, second, &result);
+
+   int size = 12000000;
+   int * v1 = (int *) mmap(NULL, size * sizeof(int), PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
+   int * v2 = (int *) mmap(NULL, size * sizeof(int), PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
+   int * result = (int *) mmap(NULL, size * sizeof(int), PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
+
+   add(v1, v2, result, size);
 
    printf("%d: quit\n", tag);
    pthread_barrier_wait(&barrier);
@@ -66,10 +72,6 @@ void launch2(int times, int tag) {
 
 int main() {
    std::cout << "Begin!" << std::endl;
-   int size = 12000000;
-
-   std::vector<int> v1(size, 1);
-   std::vector<int> v2(size, 1);
 
    int num_work = 4;
 
@@ -80,7 +82,7 @@ int main() {
    std::cout << "declare thread!" << std::endl;
 
    for (int i = 0; i < num_work; i++) {
-      t[i] = std::thread(launch1, &v1, &v2, i);
+      t[i] = std::thread(launch1, i);
       std::cout << "launched thread 1!" << std::endl;
    }
 

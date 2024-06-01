@@ -1,0 +1,2 @@
+./scripts/gen_shim.sh examples/microbenchmark/libhello.so examples/microbenchmark/helloworld_stub_overhead/hello_stub/symbols.txt examples/microbenchmark/helloworld_stub_overhead/hello_stub/vlc_callback.c
+mv libhello.so examples/microbenchmark/helloworld_stub_overhead/hello_stub/

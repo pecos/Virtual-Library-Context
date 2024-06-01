@@ -14,15 +14,20 @@ libpowermp.so: src/powermp.cpp
 	$(CXX) $(CFLAGS) -c -o powermp.o $< -pthread -fopenmp -fPIC
 	$(CXX) $(CFLAGS) -shared -o $@ powermp.o -pthread -fopenmp -fPIC
 
-launcher: src/launcher.cpp libaddmp.so libsummp.so ../../include/VLC.h
+launcher: src/launcher.cpp libaddmp.so libsummp.so ../../include/VLC/runtime.h
 	$(CXX) $(CFLAGS) -o $@ $< -Wl,--undefined=__pthread_create -pthread -fopenmp -ldl
 
-launcher_multiple: src/launcher_multiple.cpp libaddmp.so libsummp.so libpowermp.so ../../include/VLC.h
+launcher_multiple: src/launcher_multiple.cpp libaddmp.so libsummp.so libpowermp.so ../../include/VLC/runtime.h
 	$(CXX) $(CFLAGS) -o $@ $< -pthread -fopenmp -ldl
 
 launcher_novlc: src/launcher_novlc.cpp src/addmp.cpp src/summp.cpp src/powermp.cpp
 	$(CXX) $(CFLAGS) -o $@ $^ -pthread -fopenmp
 
+initialize_time_vlc: src/initialize_time/vlc.cpp  libaddmp.so ../../include/VLC/runtime.h
+	$(CXX) $(CFLAGS) -o $@ $<
+
+initialize_time_base: src/initialize_time/base.cpp  libaddmp.so
+	$(CXX) $(CFLAGS) -o $@ $< -L./ -laddmp
 
 clean:
 	rm -f *.o *.so launcher launcher_novlc launcher_multiple

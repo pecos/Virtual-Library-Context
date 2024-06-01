@@ -24,7 +24,7 @@
 #include "galois/graphs/LCGraph.h"
 #include "galois/graphs/TypeTraits.h"
 
-#include "BFS_SSSP.h"
+#include "bfs.h"
 
 #include <iostream>
 #include <deque>
@@ -37,19 +37,7 @@ enum Algo { AsyncTile = 0, Async, SyncTile, Sync };
 
 const char* const ALGO_NAMES[] = {"AsyncTile", "Async", "SyncTile", "Sync"};
 
-const int NSLOTS = 8;
-
 galois::SharedMemSys* G = NULL;
-
-struct NodeData {
-    unsigned distances[NSLOTS];
-};
-
-
-//using Graph = galois::graphs::LC_CSR_Graph<unsigned, void>::with_no_lockable<true>::type;
-using Graph = galois::graphs::LC_CSR_Graph<NodeData, void>::with_no_lockable<true>::type;
-
-using GNode = Graph::GraphNode;
 
 constexpr static const bool TRACK_WORK          = false;
 constexpr static const unsigned CHUNK_SIZE      = 256U;

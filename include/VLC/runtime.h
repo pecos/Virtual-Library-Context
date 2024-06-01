@@ -1,5 +1,5 @@
-#ifndef _VLC_H_
-#define _VLC_H_
+#ifndef _VLC_RUNTIME_H_
+#define _VLC_RUNTIME_H_
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -23,20 +23,15 @@
 #include <unordered_map>
 #include <cassert>
 
-#ifdef NDEBUG
-#define DEBUG(...) 
-#else
-#define DEBUG(...) ({\
-            printf("[DEBUG] ");\
-            printf(__VA_ARGS__);\
-            printf("\n");\
-           })
-#endif
+#include "VLC/info.h"
+#include "VLC/resource.h"
 
 // this variable will has same address on Manager and Application processes
-static const char FORGED_CPU_FOLDER[] = "/home/yyan/cpu";
-static const char FORGED_CPU_ONLINE_FILE[] = "/home/yyan/cpu/online";
-static const char FORGED_CPU_INFO_FILE[] = "/home/yyan/cpuinfo";
+static const char FORGED_CPU_FOLDER[] = "/home/yyan/forge-cpu/languedoc/half/cpu";
+static const char FORGED_CPU_ONLINE_FILE[] = "/home/yyan/forge-cpu/languedoc/half/cpu/online";
+static const char FORGED_CPU_INFO_FILE[] = "/home/yyan/forge-cpu/languedoc/half/cpuinfo";
+static char FORGED_MEM_INFO_FILE_BUFFER[] = "                                                a";
+
 
 namespace VLC {
 
@@ -85,20 +80,17 @@ public:
             // wait on application seccomp bpf configuration
             int status;
             if (waitpid(-1, &status, __WALL) == -1) {
-                std::cerr << "VLC: unable to intercept syscall, " << strerror(errno) << std::endl;
-                std::exit(EXIT_FAILURE);
+                VLC_DIE("VLC: unable to intercept syscall, %s", strerror(errno));
             }
 
             // let application terminate along with monitor process
             if (ptrace(PTRACE_SETOPTIONS, pid, 0, PTRACE_O_EXITKILL | PTRACE_O_TRACEFORK | PTRACE_O_TRACECLONE | PTRACE_O_TRACESECCOMP) == -1) {
-                std::cerr << "VLC: unable to config tracer 1." << std::endl;
-                std::exit(EXIT_FAILURE);
+                VLC_DIE("VLC: unable to config tracer.");
             }
 
             std::cout << "VLC: resume application, pid=" << application_pid << std::endl;
             if (ptrace(PTRACE_CONT, application_pid, 0, 0) == -1) {
-                std::cerr << "VLC: unable to resume application." << std::endl;
-                std::exit(EXIT_FAILURE);
+                VLC_DIE("VLC: unable to resume application.");
             }
 
             // start monitoring the application
@@ -111,6 +103,8 @@ public:
 
 private:
     enum ChildState {NEW_STOPPED, NEW_FORKED, RUNNING};
+
+    VLC::Resource resource;
 
     cpu_set_t system_cpu_set;
     std::unordered_map<pid_t, cpu_set_t> virtual_cpu_sets;
@@ -153,14 +147,12 @@ private:
         // promise not to grant any new privileges
         // so no need to run this program with root
         if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) == -1) {
-            std::cerr << "VLC: unable to promise no_new_privs" << std::endl;
-            std::exit(EXIT_FAILURE);
+            VLC_DIE("VLC: unable to promise NO_NEW_PRIVS");
         }
 
         // set seccomp with the above BFP program
         if (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog) == -1) {
-            std::cerr << "VLC: untable to set seccomp filter, " << strerror(errno) << std::endl;
-            std::exit(EXIT_FAILURE);
+            VLC_DIE("VLC: untable to set seccomp filter, %s", strerror(errno));
         }
    }
 
@@ -171,8 +163,7 @@ private:
     void determine_resouces() {
         // cpu set
         if (sched_getaffinity(0, sizeof(cpu_set_t), &system_cpu_set) == -1) {
-            std::cerr << "VLC: unable to determine cpu set, " << strerror(errno) << std::endl;
-            std::exit(EXIT_FAILURE);
+            VLC_DIE("VLC: unable to determine cpu set, %s", strerror(errno));
         }
     }
 
@@ -185,22 +176,20 @@ private:
         while (true) {
             pid_t child_waited = waitpid(-1, &status, __WALL);
             if (child_waited == -1) {
-                std::cerr << "VLC: unable to intercept syscall, " << strerror(errno) << std::endl;
-                std::exit(EXIT_FAILURE);
+                VLC_DIE("VLC: unable to intercept syscall, %s", strerror(errno));
             }
             
-            DEBUG("VLC: stop application, pid=%d.", child_waited);
+            VLC_DEBUG("VLC: stop application, pid=%d.", child_waited);
 
             // if haven't seen this pid before
             if (application_child_states.find(child_waited) == application_child_states.end()) {
                 // if this is a SIGSTOP event (a new child is stopped at begin)
                 if (WIFSTOPPED(status) && WSTOPSIG(status) == SIGSTOP) {
-                    DEBUG("VLC: a child is stopped after created, pid=%d", child_waited);
+                    VLC_DEBUG("VLC: a child is stopped after created, pid=%d", child_waited);
                     application_child_states[child_waited] = ChildState::NEW_STOPPED;
                     continue;
                 } else {
-                    std::cerr << "VLC: found unknown process/thread which is not traced, pid=" << child_waited << std::endl;
-                    std::exit(EXIT_FAILURE);
+                    VLC_DIE("VLC: found unknown process/thread which is not traced, pid=%d", child_waited);
                 }
             }
 
@@ -211,13 +200,13 @@ private:
                 // retrive syscall arguments
                 user_regs_struct regs;
                 if (ptrace(PTRACE_GETREGS, child_waited, NULL, &regs) == -1) {
-                    std::cerr << "VLC: unable to intercept syscall, " << strerror(errno) << std::endl;
-                    std::exit(EXIT_FAILURE);
+                    VLC_DIE("VLC: unable to intercept syscall, %s", strerror(errno));
                 }
                 long syscall = regs.orig_rax;
      
                 if (syscall == SYS_openat) {  // capture openat()
                     forge_openat(child_waited, &regs.rsi);
+                    printf("filename: %s", (char *) regs.rsi);
                     ptrace(PTRACE_SETREGS, child_waited, NULL, &regs);
                 }
 
@@ -225,20 +214,17 @@ private:
 
                 // continue until syscall exit
                 if (ptrace(PTRACE_SYSCALL, child_waited, NULL, NULL) == -1)  {
-                    std::cerr << "VLC: unable to intercept syscall, " << strerror(errno) << std::endl;
-                    std::exit(EXIT_FAILURE);
+                    VLC_DIE("VLC: unable to intercept syscall, %s", strerror(errno));
                 }
                 if (waitpid(child_waited, &status, 0) == -1) {
-                    std::cerr << "VLC: unable to intercept syscall, " << strerror(errno) << std::endl;
-                    std::exit(EXIT_FAILURE);
+                    VLC_DIE("VLC: unable to intercept syscall, %s", strerror(errno));
                 }
 
                 /*** Phase 3: leaving syscall **/
                 
                 // retrive syscall arguments
                 if (ptrace(PTRACE_GETREGS, child_waited, NULL, &regs) == -1) {
-                    std::cerr << "VLC: unable to intercept syscall, " << strerror(errno) << std::endl;
-                    std::exit(EXIT_FAILURE);
+                    VLC_DIE("VLC: unable to intercept syscall, %s", strerror(errno));
                 }
                 assert(regs.orig_rax == syscall);  // orig_rax should not change
 
@@ -249,8 +235,7 @@ private:
 
                     // enforce the affinity we virtulized
                     if (sched_setaffinity(child_waited, regs.rsi, &virtual_cpu_sets[child_waited]) == -1) {
-                        std::cerr << "VLC: unable to set cpu set, " << strerror(errno) << std::endl;
-                        std::exit(EXIT_FAILURE);
+                        VLC_DIE("VLC: unable to set cpu set, %s", strerror(errno));
                     }
                 }
             } else if ((status >> 8 == (SIGTRAP | (PTRACE_EVENT_CLONE << 8))) ||
@@ -259,11 +244,10 @@ private:
                 // need to trace the new child
                 pid_t new_child;
                 if (ptrace(PTRACE_GETEVENTMSG, child_waited, NULL, &new_child) == -1) {
-                    std::cerr << "VLC: unable to retrive new child pid, " << strerror(errno) << std::endl;
-                    std::exit(EXIT_FAILURE);
+                    VLC_DIE("VLC: unable to retrive new child pid, %s", strerror(errno));
                 }
 
-                DEBUG("VLC: a new child process/thread is created, pid=%d", new_child);
+                VLC_DEBUG("VLC: a new child process/thread is created, pid=%d", new_child);
 
                 // if the pid is first seen
                 if (application_child_states.find(new_child) == application_child_states.end()) {
@@ -274,16 +258,14 @@ private:
                 
                     // trace and let child continue
                     if (ptrace(PTRACE_SETOPTIONS, new_child, NULL, PTRACE_O_TRACEFORK | PTRACE_O_TRACECLONE | PTRACE_O_TRACESECCOMP | PTRACE_O_EXITKILL) == -1) {
-                        std::cerr << "VLC: unable to config tracer 6, pid=" << new_child << ", " << strerror(errno) << std::endl;
-                        std::exit(EXIT_FAILURE);
+                        
                     }
 
-                    DEBUG("VLC: child is traced and resumed, pid=%d", new_child);
+                    VLC_DEBUG("VLC: child is traced and resumed, pid=%d", new_child);
 
                     application_child_states[new_child] = ChildState::RUNNING;
                     if (ptrace(PTRACE_CONT, new_child, NULL, NULL) == -1) {
-                        std::cerr << "VLC: unable to config tracer 8." << std::endl;
-                        std::exit(EXIT_FAILURE);
+                        VLC_DIE("VLC: unable to config tracer");
                     }
                 }
             } else if (WIFSTOPPED(status) && WSTOPSIG(status) == SIGSTOP) {
@@ -292,21 +274,20 @@ private:
                 
                 // trace and let child continue
                 if (ptrace(PTRACE_SETOPTIONS, child_waited, NULL, PTRACE_O_TRACEFORK | PTRACE_O_TRACECLONE | PTRACE_O_TRACESECCOMP | PTRACE_O_EXITKILL) == -1) {
-                    std::cerr << "VLC: unable to config tracer 6, " << strerror(errno) << std::endl;
-                    std::exit(EXIT_FAILURE);
+                    VLC_DIE("VLC: unable to config tracer");
                 }
 
-                DEBUG("VLC: child is traced and resumed, pid=%d", child_waited);
+                VLC_DEBUG("VLC: child is traced and resumed, pid=%d", child_waited);
 
                 // CONT will be sent after the if block
                 application_child_states[child_waited] = ChildState::RUNNING;
             } else if (WIFEXITED(status) || WIFSIGNALED(status)) {
                 if (WIFEXITED(status)) {
-                    DEBUG("VLC: child exit with status %d, pid=%d", WEXITSTATUS(status), child_waited);
+                    VLC_DEBUG("VLC: child exit with status %d, pid=%d", WEXITSTATUS(status), child_waited);
                 }
 
                 if (WIFSIGNALED(status)) {
-                    DEBUG("VLC: child terminated by signal %d (%s) %s, pid=%d", WTERMSIG(status), strsignal(WTERMSIG(status)), 
+                    VLC_DEBUG("VLC: child terminated by signal %d (%s) %s, pid=%d", WTERMSIG(status), strsignal(WTERMSIG(status)), 
                         (WCOREDUMP(status) ? " (core dumped)" : ""), child_waited);
                 }
 
@@ -322,22 +303,18 @@ private:
                 continue; 
             } else {
                if (WIFSTOPPED(status)) {
-                    std::cerr << "VLC: stopped by signal " << WSTOPSIG(status) << " (" << strsignal(WSTOPSIG(status)) 
-                    << "), pid=" << child_waited << std::endl;
+                    VLC_DIE("VLC: stopped by signal %d (%s), pid=%d", WSTOPSIG(status), strsignal(WSTOPSIG(status)), child_waited);
                 }
                 else if (WIFCONTINUED(status)) {
-                    std::cerr << "VLC: continued , pid=" << child_waited << std::endl;
+                    VLC_DEBUG("VLC: recive SIGCONT, continued, pid=%d", child_waited);
                 } else {
-                    std::cerr << "VLC: stop on an unknown status " << status << ", pid=" << child_waited << std::endl;
+                    VLC_DIE("VLC: stop on an unknown status %d, pid=%d", status, child_waited);
                 }
-
-                std::exit(EXIT_FAILURE);
             }
 
             // continue until next seccomp signal
             if (ptrace(PTRACE_CONT, child_waited, NULL, NULL) == -1) {
-                std::cerr << "VLC: unable to continue the application, pid=" << child_waited << ", " << strerror(errno) << std::endl;
-                std::exit(EXIT_FAILURE);
+                VLC_DIE("VLC: unable to continue the application, pid=%d, %s", child_waited, strerror(errno));
             }
         }
     }
@@ -366,39 +343,95 @@ private:
             //     CPU_SET(i, &virtual_cpu_set);
             // }
 
-            if (virtual_cpu_sets.size() == 0) {
+            // if (virtual_cpu_sets.size() == 0) {
+            //     CPU_ZERO(&virtual_cpu_set);
+            //     for (int i = 0; i < 32; i++) {
+            //         if (i % 2 == 0)
+            //             CPU_SET(i, &virtual_cpu_set);
+            //     }
+            // } else if (virtual_cpu_sets.size() == 1) {
+            //     CPU_ZERO(&virtual_cpu_set);
+            //     for (int i = 0; i < 32; i++) {
+            //         if (i % 2 == 1)
+            //             CPU_SET(i, &virtual_cpu_set);
+            //     }
+            // }
+
+            if (virtual_cpu_sets.size() % 2 == 0) {
                 CPU_ZERO(&virtual_cpu_set);
-                for (int i = 0; i < 8; i++) {
+                for (int i = 0; i < 1; i++) {
                     CPU_SET(i, &virtual_cpu_set);
                 }
-                for (int i = 32; i < 40; i++) {
-                    CPU_SET(i, &virtual_cpu_set);
-                }
-            } else if (virtual_cpu_sets.size() == 1) {
+            } else if (virtual_cpu_sets.size() % 2 == 1) {
                 CPU_ZERO(&virtual_cpu_set);
-                for (int i = 16; i < 24; i++) {
-                    CPU_SET(i, &virtual_cpu_set);
-                }
-                for (int i = 48; i < 56; i++) {
-                    CPU_SET(i, &virtual_cpu_set);
-                }
-            } else if (virtual_cpu_sets.size() == 2) {
-                CPU_ZERO(&virtual_cpu_set);
-                for (int i = 8; i < 16; i++) {
-                    CPU_SET(i, &virtual_cpu_set);
-                }
-                for (int i = 40; i < 48; i++) {
-                    CPU_SET(i, &virtual_cpu_set);
-                }
-            } else {
-                CPU_ZERO(&virtual_cpu_set);
-                for (int i = 24; i < 32; i++) {
-                    CPU_SET(i, &virtual_cpu_set);
-                }
-                for (int i = 56; i < 64; i++) {
+                for (int i = 1; i < 24; i++) {
                     CPU_SET(i, &virtual_cpu_set);
                 }
             }
+
+            // if (virtual_cpu_sets.size() == 0) {
+            //     CPU_ZERO(&virtual_cpu_set);
+            //     for (int i = 0; i <= 7; i++) {
+            //         CPU_SET(i, &virtual_cpu_set);
+            //     }
+            //     for (int i = 32; i <= 39; i++) {
+            //         CPU_SET(i, &virtual_cpu_set);
+            //     }
+            //     for (int i = 8; i <= 15; i++) {
+            //         CPU_SET(i, &virtual_cpu_set);
+            //     }
+            //     for (int i = 40; i <= 47; i++) {
+            //         CPU_SET(i, &virtual_cpu_set);
+            //     }
+            // } else if (virtual_cpu_sets.size() == 1) {
+            //     CPU_ZERO(&virtual_cpu_set);
+            //     for (int i = 16; i <= 23; i++) {
+            //         CPU_SET(i, &virtual_cpu_set);
+            //     }
+            //     for (int i = 48; i <= 55; i++) {
+            //         CPU_SET(i, &virtual_cpu_set);
+            //     }
+            //     for (int i = 24; i <= 31; i++) {
+            //         CPU_SET(i, &virtual_cpu_set);
+            //     }
+            //     for (int i = 56; i <= 63; i++) {
+            //         CPU_SET(i, &virtual_cpu_set);
+            //     }
+            // }
+
+            // if (virtual_cpu_sets.size() == 0) {
+            //     CPU_ZERO(&virtual_cpu_set);
+            //     for (int i = 0; i <= 7; i++) {
+            //         CPU_SET(i, &virtual_cpu_set);
+            //     }
+            //     for (int i = 32; i <= 39; i++) {
+            //         CPU_SET(i, &virtual_cpu_set);
+            //     }
+            // } else if (virtual_cpu_sets.size() == 1) {
+            //     CPU_ZERO(&virtual_cpu_set);
+            //     for (int i = 8; i <= 15; i++) {
+            //         CPU_SET(i, &virtual_cpu_set);
+            //     }
+            //     for (int i = 40; i <= 47; i++) {
+            //         CPU_SET(i, &virtual_cpu_set);
+            //     }
+            // } else if (virtual_cpu_sets.size() == 2) {
+            //     CPU_ZERO(&virtual_cpu_set);
+            //     for (int i = 16; i <= 23; i++) {
+            //         CPU_SET(i, &virtual_cpu_set);
+            //     }
+            //     for (int i = 48; i <= 55; i++) {
+            //         CPU_SET(i, &virtual_cpu_set);
+            //     }
+            // } else {
+            //     CPU_ZERO(&virtual_cpu_set);
+            //     for (int i = 24; i <= 31; i++) {
+            //         CPU_SET(i, &virtual_cpu_set);
+            //     }
+            //     for (int i = 56; i <= 63; i++) {
+            //         CPU_SET(i, &virtual_cpu_set);
+            //     }
+            // }
 
             virtual_cpu_sets[pid] = std::move(virtual_cpu_set);
         }
@@ -413,11 +446,10 @@ private:
         remote_iov[0].iov_len = len;
 
         if (process_vm_writev(application_pid, local_iov, 1, remote_iov, 1, 0) == -1) {
-            std::cerr << "VLC: unable to modify sched_getaffinity(), " << strerror(errno) << std::endl;
-            std::exit(EXIT_FAILURE);
+            VLC_DIE("VLC: unable to modify sched_getaffinity(), %s", strerror(errno));
         }
 
-        DEBUG("VLC: sched_getaffinity() is modifed.");
+        VLC_DEBUG("VLC: sched_getaffinity() is modifed.");
     }
 
     /**
@@ -431,7 +463,7 @@ private:
     */
     void forge_openat(pid_t pid, unsigned long long *filename_ptr) {
         char *filename_str = ptrace_peak_string(pid, *filename_ptr);
-        DEBUG("VLC: application try to open %s", filename_str);
+        VLC_DEBUG("VLC: application try to open %s", filename_str);
         
         // check if the path is cpu resouce file
         // modify the pointer value to a pre defined str in the application space
@@ -441,13 +473,17 @@ private:
             *filename_ptr = (unsigned long long) FORGED_CPU_ONLINE_FILE;
         } else if (strcmp(filename_str, "/proc/cpuinfo") == 0) {
             *filename_ptr = (unsigned long long) FORGED_CPU_INFO_FILE;
+        } else if (strcmp(filename_str, "/proc/meminfo") == 0) {
+            resource.set_avaliable_mem(0, 8);
+            resource.generate_mem_info_file(0, FORGED_MEM_INFO_FILE_BUFFER);
+            *filename_ptr = (unsigned long long) FORGED_MEM_INFO_FILE_BUFFER;
         } else {
             free(filename_str);
             return;
         }
 
         free(filename_str);
-        DEBUG("VLC: openat() is modifed.");
+        VLC_DEBUG("VLC: openat() is modifed.");
     }
 
     /**
@@ -464,8 +500,7 @@ private:
         int allocated = 128, read = 0;
         char *str = (char *) malloc(allocated);
         if (!str) {
-            std::cerr << "VLC: unable to malloc, " << strerror(errno) << std::endl;
-            std::exit(EXIT_FAILURE);
+            VLC_DIE("VLC: unable to malloc, %s", strerror(errno));
         }
 
         while (true) {
@@ -473,16 +508,14 @@ private:
                 allocated *= 2;
                 str = (char *) realloc(str, allocated);
                 if (!str) {
-                    std::cerr << "VLC: unable to malloc, " << strerror(errno) << std::endl;
-                    std::exit(EXIT_FAILURE);
+                    VLC_DIE("VLC: unable to malloc, %s", strerror(errno));
                 }
             }
             // clear errno before check it
             errno = 0;
             long ret = ptrace(PTRACE_PEEKDATA, pid, addr + read, NULL);
             if(errno != 0) {
-                std::cerr << "VLC: unable to peak string from application memory, " << strerror(errno) << std::endl;
-                std::exit(EXIT_FAILURE);
+                VLC_DIE("VLC: unable to peak string from application memory, %s", strerror(errno));
             }
             memcpy(str + read, &ret, sizeof(ret));
 
@@ -503,4 +536,4 @@ private:
 // void register_thread(pthread_t thread, int id);
 
 }
-#endif // _VLC_H_
+#endif // _VLC_RUNTIME_H_
