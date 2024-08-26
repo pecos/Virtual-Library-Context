@@ -33,6 +33,15 @@ A modified version of [Implib.so](https://github.com/yinengy/Implib.so) shim gen
 
 VLCs is a header only library and no installation is required. To use it, simply include the header file "VLC/runtime.h" and "VLC/loader.h" in the application.
 
+To run examples of VLCs
+
+```
+git clone --recurse-submodules -j8 git@github.com:pecos/Virtual-Library-Context.git
+cd Virtual-Library-Context
+./scripts/run_openmp.sh launcher_vlc
+./examples/openmp/run_transparency.sh
+```
+
 # Overview
 
 A VLC is a virtualized context (environment) that libraries execute in. An application typically composed with several VLCs each has different resource partition.
