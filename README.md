@@ -8,7 +8,7 @@ What VLCs **DO** for applications:
 - safely parallelize thread-unsafe code
 - enable nested parallelism that is not supported natively
 
-What VLCs **NOT REQUIRE**:
+What VLCs **DO NOT** REQUIRE:
 - Library source code modification
 - Library recompilation
 - Major applications code changes
@@ -53,21 +53,30 @@ Currently VLCs support two modes: Manual Mode and Transparent Mode. User could p
 
 ## Transparent Mode
 
-(NOTE: This is an experimental feature and not all libraries works on this mode (e.g. Galois).)
+(NOTE: This is an experimental feature and not all libraries work on this mode (e.g. Galois).)
 
-First, the `VLC::Runtime` should be declared and initialized by calling `vlc.initialize()` at the begging of main().
+### Build shim
+To use transparent mode, a shim is required to be generated for libraries in VLCs. We provide a toolchain to do that and there is a script  `run_transparency.sh` to compile shim and launch VLC in transparency mode for each of the applications in the `example` folder. 
+
+To make your own shim, please reference the script [run_transparency.sh](https://github.com/pecos/Virtual-Library-Context/blob/master/examples/openBLAS/run_transparency.sh). All you need to do is update `LIB_FILE` which is the absolute path to the library in the script, and also make a `symbols.txt` file which contains a list of symbols of the library to be used in the applications. 
+
+To ease the burden of finding symbol names in complicated libraries, we provide a (script)[https://github.com/pecos/Virtual-Library-Context/blob/master/scripts/gen_shim_symbols.py] to automatically print all function symbols that the applications would use. Its usage is
+```
+> python3 gen_shim_symbols.py <application_binary> <abs_path_of_library>
+```
+
+### Config VLCs
+
+First, the `VLC::Runtime` should be declared and initialized by calling `vlc.initialize()` at the beginning of main().
 
 Then we make threads so each VLC could run in parallel.
 
-To assign resource like available CPU cores to each VLC, we need to define a 
+To assign resources like available CPU cores to each VLC, we need to define a 
 `VLC::Context` object with VLC ID (start from 1, since 0 is preserved for default namespace) and tid of current thread. `avaliable_cpu()` is called to set the number of CPUs and `register_vlc()` is called to tell runtime how the context should be.
 
-To load libraries in to VLC, simply initialized a `VLC::Loader` object with VLC ID and an **absolute path** to the library and the last parameter is `true` to indicate we are using transparent mode.
+To load libraries into VLC, simply initialize a `VLC::Loader` object with VLC ID and an **absolute path** to the library and the last parameter is `true` to indicate we are using transparent mode. The default number of VLCs is 2 in the script, please remeber to update the number `NUM_VLC` if you need more VLCs.
 
 The computation kernel code could then be executed directly. VLC Runtime will resolve the symbols automatically in transparent mode.
-
-### Build shim
-To use transparent mode, a shim is required to be generated for libraries in VLCs. We provide a tool chain to do that and there is a script for each of the application in examples. To make your own shim, please reference the script.
 
 ```C++
 void launcher(int vlc_id) {
@@ -104,11 +113,11 @@ int main() {
 
 ## Manual Mode
 
-This mode requires manually load all function symbols of the libraries used in the application code. This provides better compatibility than transparent mode.
+This mode requires manually loading all function symbols of the libraries used in the application code. This provides better compatibility than transparent mode. And there is no need to generate a shim.
 
 User need to define the function pointer types of libraries they want to use at the top of the application code. And then put a mapping of the function name to its mangled symbols names in `register_functions()`.
 
-When loading libraries into VLC, user need to get the function pointers manually from VLC by calling `loader.load_func<function_type>("function_name");`, and all libraries API used in the application need to be replaced with these function pointers. If a API in the libraries loaded into VLC is not used, there is no need to load that unused function pointer.
+When loading libraries into VLC, user needs to get the function pointers manually from VLC by calling `loader.load_func<function_type>("function_name");`, and all libraries API used in the application need to be replaced with these functions pointers. If an API in the libraries loaded into VLC is not used, there is no need to load that unused function pointer.
 
 ```C++
 typedef void (*compute_t)(int N);
@@ -155,3 +164,25 @@ int main() {
         t[i].join();
 }
 ```
+
+# GPU Support
+(Experimental features, please report issues if you see errors when using GPUs with VLCs)
+To support libraries using GPU (e.g. Kokkos), VLCs provide *VLC Service* feature which is a dedicated VLC that encapsulates libraries that are dlmopen-incompatible (e.g. CUDA runtime).
+
+Just like the Transparent Mode, VLC Service relies on the generated shim of the target libraries so the application can link to shim and the shim will be responsible for dispatching API requests to the VLC Service. Without the use of VLC Service, applications will get an error when trying to load CUDA runtime into a VLC.
+
+How to generate a shim for VLC Service could be found by reference [gen_cudart_shim.sh](https://github.com/pecos/Virtual-Library-Context/blob/master/scripts/gen_cudart_shim.sh). And the Kokkos examples provide an example of VLC Service for CUDA.
+
+## Known Libraries that required VLC Service support
+Those libraries are dlmopen-incompatible and require the use of VLC Service as a workaround. There may exist more libraries and the list will be updated once we find them.
+- CUDA
+- Pthread (only for glibc < 2.34)
+
+## Known Issues
+
+Issues to be fixed.
+
+- Transparent Mode does not work on Galois
+- Transparent Mode may not work with VLC Service
+- Dynamic data symbols are not supported in Transparent Mode yet
+- The max number of VLCs is limited by the number of linker namespaces (less than 16)
