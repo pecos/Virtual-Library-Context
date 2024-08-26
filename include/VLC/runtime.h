@@ -25,12 +25,13 @@
 
 #include "VLC/info.h"
 #include "VLC/resource.h"
+#include "VLC/communication.h"
 
 // this variable will has same address on Manager and Application processes
 static const char FORGED_CPU_FOLDER[] = "/home/yyan/forge-cpu/languedoc/half/cpu";
 static const char FORGED_CPU_ONLINE_FILE[] = "/home/yyan/forge-cpu/languedoc/half/cpu/online";
 static const char FORGED_CPU_INFO_FILE[] = "/home/yyan/forge-cpu/languedoc/half/cpuinfo";
-static char FORGED_MEM_INFO_FILE_BUFFER[] = "                                                a";
+// static char FORGED_MEM_INFO_FILE_BUFFER[] = "                                                a";
 
 
 namespace VLC {
@@ -55,6 +56,10 @@ public:
      * Manager process will not exit until application process is finished.
     */
     void initialize() {
+        // prepare shared memory for future communication
+        Internal::VLC_SHARED_MEM = Internal::SharedMem(sizeof(VLC::Context));
+        Internal::MONITOR_PID = getpid();
+
         pid_t pid = fork();
 
         if (pid == -1) {
@@ -76,6 +81,9 @@ public:
             application_pid = pid;
             application_child_states[pid] = ChildState::RUNNING; // itself is also in the list
             determine_resouces();
+
+            // register signal hanlder for communication
+            signal(SIGUSR1, Internal::monitor_sig_hanlder);
 
             // wait on application seccomp bpf configuration
             int status;
@@ -104,7 +112,7 @@ public:
 private:
     enum ChildState {NEW_STOPPED, NEW_FORKED, RUNNING};
 
-    VLC::Resource resource;
+    // VLC::Internal::Resource resource;
 
     cpu_set_t system_cpu_set;
     std::unordered_map<pid_t, cpu_set_t> virtual_cpu_sets;
@@ -206,7 +214,6 @@ private:
      
                 if (syscall == SYS_openat) {  // capture openat()
                     forge_openat(child_waited, &regs.rsi);
-                    printf("filename: %s", (char *) regs.rsi);
                     ptrace(PTRACE_SETREGS, child_waited, NULL, &regs);
                 }
 
@@ -248,6 +255,10 @@ private:
                 }
 
                 VLC_DEBUG("VLC: a new child process/thread is created, pid=%d", new_child);
+
+                // put the new child to the same VLC its parent in
+                VLC::Internal::pid_to_vlc_id[new_child] = VLC::Internal::pid_to_vlc_id[child_waited];
+                VLC_DEBUG("VLC: new_child %d is in vlc %d", new_child, VLC::Internal::pid_to_vlc_id[new_child]);
 
                 // if the pid is first seen
                 if (application_child_states.find(new_child) == application_child_states.end()) {
@@ -301,6 +312,9 @@ private:
 
                 // child already exist, skip the rest 
                 continue; 
+            } else if (status >> 8 == SIGUSR1) {
+                // this is a signal for communication between monitor and application
+                VLC_DEBUG("VLC: recive SIGUSR1, continued, pid=%d", child_waited);
             } else {
                if (WIFSTOPPED(status)) {
                     VLC_DIE("VLC: stopped by signal %d (%s), pid=%d", WSTOPSIG(status), strsignal(WSTOPSIG(status)), child_waited);
@@ -329,109 +343,17 @@ private:
      * Its content will be modified.
     */
     void forge_sched_getaffinity(pid_t pid, unsigned int len, unsigned long long user_mask_ptr) {
-        // TODO: add policy here
         // make a virtual cpu affinity
         if (virtual_cpu_sets.find(pid) == virtual_cpu_sets.end()) {
             cpu_set_t virtual_cpu_set = system_cpu_set;
-            
-            // int num_group = 4;
-            // int num_th_per_group = (64 / num_group);
-            // int offset = virtual_cpu_sets.size() % num_group * num_th_per_group;
-            
-            // CPU_ZERO(&virtual_cpu_set);
-            // for (int i = offset; i < offset + num_th_per_group; i++) {
-            //     CPU_SET(i, &virtual_cpu_set);
-            // }
 
-            // if (virtual_cpu_sets.size() == 0) {
-            //     CPU_ZERO(&virtual_cpu_set);
-            //     for (int i = 0; i < 32; i++) {
-            //         if (i % 2 == 0)
-            //             CPU_SET(i, &virtual_cpu_set);
-            //     }
-            // } else if (virtual_cpu_sets.size() == 1) {
-            //     CPU_ZERO(&virtual_cpu_set);
-            //     for (int i = 0; i < 32; i++) {
-            //         if (i % 2 == 1)
-            //             CPU_SET(i, &virtual_cpu_set);
-            //     }
-            // }
+            // find the core_map from info we saved from register_vlc()
+            std::vector<int> core_map = VLC::Internal::vlc_id_to_core_map[VLC::Internal::pid_to_vlc_id[pid]];
 
-            if (virtual_cpu_sets.size() % 2 == 0) {
-                CPU_ZERO(&virtual_cpu_set);
-                for (int i = 0; i < 1; i++) {
-                    CPU_SET(i, &virtual_cpu_set);
-                }
-            } else if (virtual_cpu_sets.size() % 2 == 1) {
-                CPU_ZERO(&virtual_cpu_set);
-                for (int i = 1; i < 24; i++) {
-                    CPU_SET(i, &virtual_cpu_set);
-                }
+            CPU_ZERO(&virtual_cpu_set);
+            for (auto i: core_map) {
+                CPU_SET(i, &virtual_cpu_set);
             }
-
-            // if (virtual_cpu_sets.size() == 0) {
-            //     CPU_ZERO(&virtual_cpu_set);
-            //     for (int i = 0; i <= 7; i++) {
-            //         CPU_SET(i, &virtual_cpu_set);
-            //     }
-            //     for (int i = 32; i <= 39; i++) {
-            //         CPU_SET(i, &virtual_cpu_set);
-            //     }
-            //     for (int i = 8; i <= 15; i++) {
-            //         CPU_SET(i, &virtual_cpu_set);
-            //     }
-            //     for (int i = 40; i <= 47; i++) {
-            //         CPU_SET(i, &virtual_cpu_set);
-            //     }
-            // } else if (virtual_cpu_sets.size() == 1) {
-            //     CPU_ZERO(&virtual_cpu_set);
-            //     for (int i = 16; i <= 23; i++) {
-            //         CPU_SET(i, &virtual_cpu_set);
-            //     }
-            //     for (int i = 48; i <= 55; i++) {
-            //         CPU_SET(i, &virtual_cpu_set);
-            //     }
-            //     for (int i = 24; i <= 31; i++) {
-            //         CPU_SET(i, &virtual_cpu_set);
-            //     }
-            //     for (int i = 56; i <= 63; i++) {
-            //         CPU_SET(i, &virtual_cpu_set);
-            //     }
-            // }
-
-            // if (virtual_cpu_sets.size() == 0) {
-            //     CPU_ZERO(&virtual_cpu_set);
-            //     for (int i = 0; i <= 7; i++) {
-            //         CPU_SET(i, &virtual_cpu_set);
-            //     }
-            //     for (int i = 32; i <= 39; i++) {
-            //         CPU_SET(i, &virtual_cpu_set);
-            //     }
-            // } else if (virtual_cpu_sets.size() == 1) {
-            //     CPU_ZERO(&virtual_cpu_set);
-            //     for (int i = 8; i <= 15; i++) {
-            //         CPU_SET(i, &virtual_cpu_set);
-            //     }
-            //     for (int i = 40; i <= 47; i++) {
-            //         CPU_SET(i, &virtual_cpu_set);
-            //     }
-            // } else if (virtual_cpu_sets.size() == 2) {
-            //     CPU_ZERO(&virtual_cpu_set);
-            //     for (int i = 16; i <= 23; i++) {
-            //         CPU_SET(i, &virtual_cpu_set);
-            //     }
-            //     for (int i = 48; i <= 55; i++) {
-            //         CPU_SET(i, &virtual_cpu_set);
-            //     }
-            // } else {
-            //     CPU_ZERO(&virtual_cpu_set);
-            //     for (int i = 24; i <= 31; i++) {
-            //         CPU_SET(i, &virtual_cpu_set);
-            //     }
-            //     for (int i = 56; i <= 63; i++) {
-            //         CPU_SET(i, &virtual_cpu_set);
-            //     }
-            // }
 
             virtual_cpu_sets[pid] = std::move(virtual_cpu_set);
         }
@@ -473,11 +395,13 @@ private:
             *filename_ptr = (unsigned long long) FORGED_CPU_ONLINE_FILE;
         } else if (strcmp(filename_str, "/proc/cpuinfo") == 0) {
             *filename_ptr = (unsigned long long) FORGED_CPU_INFO_FILE;
-        } else if (strcmp(filename_str, "/proc/meminfo") == 0) {
-            resource.set_avaliable_mem(0, 8);
-            resource.generate_mem_info_file(0, FORGED_MEM_INFO_FILE_BUFFER);
-            *filename_ptr = (unsigned long long) FORGED_MEM_INFO_FILE_BUFFER;
-        } else {
+        } 
+        // else if (strcmp(filename_str, "/proc/meminfo") == 0) {
+        //     resource.set_avaliable_mem(0, 8);
+        //     resource.generate_mem_info_file(0, FORGED_MEM_INFO_FILE_BUFFER);
+        //     *filename_ptr = (unsigned long long) FORGED_MEM_INFO_FILE_BUFFER;
+        // } 
+        else {
             free(filename_str);
             return;
         }

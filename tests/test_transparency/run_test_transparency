@@ -1,0 +1,14 @@
+#!/bin/bash
+LIB_FILE="build/libfoobar.so"
+SYMBOL_FILE="symbols.txt"
+VLC_CALLBACK_FILE="vlc_callback.c"
+LIB_NAME=$(basename $LIB_FILE)        
+
+rm ${LIB_NAME}
+# python3 ../../lib/Implib.so/implib-gen.py --no-lazy-load --verbose --symbol-list=$SYMBOL_FILE $LIB_FILE --dlopen-callback=dlopen_callback
+gcc -DIMPLIB_EXPORT_SHIMS -fPIC -shared ${LIB_NAME}.tramp.S ${LIB_NAME}.init.c vlc_hashmap.c $VLC_CALLBACK_FILE -o ${LIB_NAME} -ldl
+
+rm -f address.*
+# valgrind --trace-children=yes --leak-check=full --show-leak-kinds=all env LD_PRELOAD=$PATCH_PATH LD_LIBRARY_PATH=$LIB_PATH $EXAMPLE_FOLDER/${1}
+# perf stat -B -e task-clock,context-switches,cpu-migrations,page-faults,branch-misses,cache-references,cache-misses,cycles,instructions,branches,faults env LD_PRELOAD=$PATCH_PATH LD_LIBRARY_PATH=$LIB_PATH $EXAMPLE_FOLDER/${1}
+LD_LIBRARY_PATH=. ./test_transparency

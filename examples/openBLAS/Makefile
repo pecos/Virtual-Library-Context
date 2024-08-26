@@ -1,13 +1,16 @@
 CXX=g++
 NO_DEBUG=-DNDEBUG # -g
-OPEN_BLAS_VERSION=openblas64-openmp#openblas64-pthread
+OPEN_BLAS_VERSION=openblas64-pthread#openblas64-openmp
 
 CFLAGS=-I./include -I../../include -I/usr/include/x86_64-linux-gnu/$(OPEN_BLAS_VERSION)/ -L/usr/lib/x86_64-linux-gnu/$(OPEN_BLAS_VERSION)/ -std=c++17 -Wall $(NO_DEBUG)
 
 libmatmul.so: src/matmul.cpp
 	$(CXX) $(CFLAGS) -shared -o $@ $< -lopenblas64 -fPIC
 
-matmul_launcher: src/matmul_launcher.cpp libmatmul.so ../../include/VLC/runtime.h
+matmul_launcher_vlc_transparency: src/matmul_launcher_vlc_transparency.cpp ../../include/VLC/runtime.h
+	$(CXX) $(CFLAGS) -o $@ $< -lopenblas64
+
+matmul_launcher_vlc: src/matmul_launcher_vlc.cpp libmatmul.so ../../include/VLC/runtime.h
 	$(CXX) $(CFLAGS) -o $@ $<
 
 matmul_launcher_seq: src/matmul_launcher_seq.cpp src/matmul.cpp include/matmul.h
@@ -44,4 +47,4 @@ initialize_time_base: src/initialize_time/base.cpp  libmatmul.so
 	$(CXX) $(CFLAGS) -o $@ $< -L./ -lmatmul
 
 clean:
-	rm *.so matmul_launcher
+	rm -f *.so initialize_time_base initialize_time_vlc with_openmp_vlc openblas_alone openmp_alone with_openmp_seq with_openmp_parallel matmul_launcher_seq matmul_launcher_vlc matmul_launcher_multithread matmul_launcher_vlc_transparency *.so.0

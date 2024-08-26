@@ -15,14 +15,17 @@ cuda_overhead_vlc: cuda_shim_overhead/vlc.cu libcudaoverhead.so ../../include/VL
 cuda_overhead_base: cuda_shim_overhead/base.cu cuda_shim_overhead/cuda_overhead.h libcudaoverhead.so
 	nvcc -arch=sm_60 --compiler-options '$(CFLAGS)' $< -I./cuda_shim_overhead -L./ -lcudaoverhead -o $@
 
-libhello.so: helloworld_stub_overhead/hello.cpp
+helloworld_stub_overhead/build/libhello.so: helloworld_stub_overhead/hello.cpp
 	$(CXX) $(CFLAGS) -I./helloworld_stub_overhead -shared -fPIC  $< -o $@
 
-helloworld_overhead_vlc: helloworld_stub_overhead/vlc.cpp libhello.so
-	$(CXX) $(CFLAGS) -I./helloworld_stub_overhead -L./ $< -lhello -o $@ 
+helloworld_overhead_vlc: helloworld_stub_overhead/vlc.cpp helloworld_stub_overhead/build/libhello.so
+	$(CXX) $(CFLAGS) -I./helloworld_stub_overhead -L./helloworld_stub_overhead/build $< -lhello -o $@ 
 
-helloworld_overhead_base: helloworld_stub_overhead/base.cpp libhello.so
-	$(CXX) $(CFLAGS) -I./helloworld_stub_overhead -L./ $< -lhello -o $@ 
+helloworld_overhead_base: helloworld_stub_overhead/base.cpp helloworld_stub_overhead/build/libhello.so
+	$(CXX) $(CFLAGS) -I./helloworld_stub_overhead -L./helloworld_stub_overhead/build $< -lhello -o $@ 
+
+helloworld_overhead_transparency: helloworld_stub_overhead/transparency.cpp helloworld_stub_overhead/build/libhello.so
+	$(CXX) $(CFLAGS) -I./helloworld_stub_overhead -L./helloworld_stub_overhead/build $< -lhello -o $@ 
 
 clean:
 	rm *.so matmul_launcher

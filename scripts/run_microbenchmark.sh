@@ -15,7 +15,7 @@ LIB_PATH=$EXAMPLE_FOLDER
 fi
 
 
-make -C $EXAMPLE_FOLDER $1 -j32
+# make -C $EXAMPLE_FOLDER $1 -j32
 
 # valgrind --trace-children=yes --leak-check=full --show-leak-kinds=all env LD_PRELOAD=$PATCH_PATH LD_LIBRARY_PATH=$LIB_PATH $EXAMPLE_FOLDER/${1}
 # perf stat -B -e task-clock,context-switches,cpu-migrations,page-faults,branch-misses,cache-references,cache-misses,cycles,instructions,branches,faults env LD_PRELOAD=$PATCH_PATH LD_LIBRARY_PATH=$LIB_PATH $EXAMPLE_FOLDER/${1}

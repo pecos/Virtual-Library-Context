@@ -1,6 +1,7 @@
 #include <dlfcn.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "VLC/runtime.h"
 #include <gnu/lib-names.h>  /* Defines LIBM_SO (which will be a
 
 
@@ -9,6 +10,8 @@ int
 main(void)
 {
 
+    VLC::Runtime vlc;
+    vlc.initialize();
 
     void *handle;
 
@@ -19,7 +22,7 @@ main(void)
     char *error;
 
 
-    handle = dlopen(LIBM_SO, RTLD_LAZY);
+    handle = dlmopen(LM_ID_NEWLM, LIBM_SO, RTLD_NOW);
 
 
     if (!handle) {

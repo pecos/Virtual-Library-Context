@@ -24,11 +24,11 @@ typedef double (*kokkos_reduction_copy_to_device_t)(double* array, const int N, 
 pthread_barrier_t barrier;
 
 void register_functions() {
-   std::unordered_map<std::string, std::string> names{
-      {"kokkos_init", "_Z11kokkos_initi"},
-      {"kokkos_finalize", "_Z15kokkos_finalizev"},
-      {"kokkos_reduction_copy_to_device", "_Z31kokkos_reduction_copy_to_devicePdii"}};
-   VLC::register_func_names(names);
+    std::unordered_map<std::string, std::string> names{
+        {"kokkos_init", "_Z11kokkos_initi"},
+        {"kokkos_finalize", "_Z15kokkos_finalizev"},
+        {"kokkos_reduction_copy_to_device", "_Z31kokkos_reduction_copy_to_devicePdii"}};
+    VLC::register_func_names(names);
 }
 
 void launch(int vec_id, int dev_id) {
@@ -67,32 +67,32 @@ void launch(int vec_id, int dev_id) {
 }
 
 int main() {
-   // initialize VLC environment
-   VLC::Runtime vlc;
-   vlc.initialize();
+    // initialize VLC environment
+    VLC::Runtime vlc;
+    vlc.initialize();
 
-   // register functions used in VLC
-   register_functions();
+    // register functions used in VLC
+    register_functions();
 
-   std::cout << "Begin!" << std::endl;
-   int num_work = 2;
+    std::cout << "Begin!" << std::endl;
+    int num_work = 2;
 
-   pthread_barrier_init(&barrier, NULL, num_work);
-   std::cout << "pthread_barrier_init!" << std::endl;
+    pthread_barrier_init(&barrier, NULL, num_work);
+    std::cout << "pthread_barrier_init!" << std::endl;
 
-   std::vector<std::thread> t(num_work);
-   std::cout << "declare thread!" << std::endl;
+    std::vector<std::thread> t(num_work);
+    std::cout << "declare thread!" << std::endl;
 
-   for (int i = 0; i < num_work; i++) {
-      t[i] = std::thread(launch, i, i);
-      std::cout << "launched thread" << i << std::endl;
-   }
+    for (int i = 0; i < num_work; i++) {
+        t[i] = std::thread(launch, i, i);
+        std::cout << "launched thread" << i << std::endl;
+    }
 
-   for (int i = 0; i < num_work; i++) {
-      t[i].join();
-   }
+    for (int i = 0; i < num_work; i++) {
+        t[i].join();
+    }
 
-   // print_mem_info();
+    // print_mem_info();
 
-   return 0;
+    return 0;
 }

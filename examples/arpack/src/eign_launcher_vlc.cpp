@@ -23,18 +23,23 @@ typedef int (*eign_t)(int N, int N_ev);
 void register_functions() {
    std::unordered_map<std::string, std::string> names{
       {"eign", "_Z4eignii"}};
-   VLC::register_func_names(names);
+   VLC::Loader::register_func_names(names);
 }
 
-void launch(int vec_id, int N, int N_ev) {
-    void *handle = dlmopen(LM_ID_NEWLM, "libeign.so", RTLD_NOW);
-    if (handle == NULL) {
-        fprintf(stderr, "Error in `dlmopen`: %s\n", dlerror());
-        return;
-    }
+void launch(int vlc_id, int N, int N_ev) {
+    VLC::Context vlc(vlc_id, gettid());
+
+    // please change the number based on your system
+    if (vlc_id == 1)
+        vlc.avaliable_cpu("0-22");
+    else
+        vlc.avaliable_cpu("23");
+    VLC::register_vlc(&vlc);
+
+    VLC::Loader loader("libeign.so", vlc_id, false);
 
     // load functions from libraries
-    auto eign = VLC::load_func<eign_t>(handle, "eign");
+    auto eign = loader.load_func<eign_t>("eign");
 
     t0 = std::chrono::high_resolution_clock::now();
     eign(N, N_ev);
@@ -59,7 +64,7 @@ int main() {
     std::vector<std::thread> t(num_work);
     
     for (int i = 0; i < num_work; i++) {
-        t[i] = std::thread(launch, i, N, N_ev);
+        t[i] = std::thread(launch, i+1, N, N_ev);
     }
 
     for (int i = 0; i < num_work; i++) {

@@ -7,12 +7,17 @@
 #include <fstream>
 #include <string>
 #include <cstring>
+#include <vector>
 
 #include "VLC/info.h"
 
 static const std::string VLC_RESOURCE_ROOT = "/tmp/vlc/";
 
 namespace VLC {
+namespace Internal {
+
+std::unordered_map<pid_t, int> pid_to_vlc_id;
+std::unordered_map<int, std::vector<int>> vlc_id_to_core_map;
 
 class Resource {
 public:
@@ -110,6 +115,43 @@ public:
 private:
     std::unordered_map<int, int> mem_limit;  // the virtualized avalible mem for VLCs 
     std::unordered_map<int, char*> mem_file_path;  // path to forged mem files
+};
+
+}
+
+struct Context {
+    int id;
+    pid_t thread_id;
+    char cpu_str[256] = {0};
+
+    Context() = default;
+
+    Context(int vlc_id) {
+        id = vlc_id;
+    }
+
+    Context(int vlc_id, pid_t thread_id) {
+        id = vlc_id;
+        this->thread_id = thread_id;
+    }
+
+    inline void register_thread(pid_t thread_id) {
+        this->thread_id = thread_id;
+    }
+
+    /**
+     * configure the cores avalible to this VLC
+     * 
+     * @param cpu_str a string represent the avalibale cpu ranges.
+     *      Format:
+     *          "0-3": cpu 0 1 2 3
+     *          "0,1,2,3": cpu 0 1 2 3
+     *          "0-1,7-8": cpu 0 1 7 8
+     * @note maximum string length is 256
+    */
+    inline void avaliable_cpu(const char *cpu_str) {
+        strcpy(this->cpu_str, cpu_str);
+    }
 };
 
 }
