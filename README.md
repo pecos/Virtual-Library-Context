@@ -27,7 +27,8 @@ VLCs are tested on a system with the following environment:
 
 # Dependencies
 
-A modified version of [Implib.so](https://github.com/yinengy/Implib.so) shim generator.
+- A modified version of [Implib.so](https://github.com/yinengy/Implib.so) shim generator, need to be initialized as a submodule.
+- libseccomp-dev
 
 # Installation
 
@@ -36,6 +37,7 @@ VLCs is a header only library and no installation is required. To use it, simply
 To run examples of VLCs
 
 ```
+apt install libseccomp-dev
 git clone --recurse-submodules -j8 git@github.com:pecos/Virtual-Library-Context.git
 cd Virtual-Library-Context
 ./scripts/run_openmp.sh launcher_vlc
@@ -195,3 +197,4 @@ Issues to be fixed.
 - Transparent Mode may not work with VLC Service
 - Dynamic data symbols are not supported in Transparent Mode yet
 - The max number of VLCs is limited by the number of linker namespaces (less than 16)
+- Compiling with compiler optimization enabled may break transparent mode for certain libraries (e.g. oneDNN)
