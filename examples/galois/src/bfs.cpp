@@ -282,7 +282,7 @@ void init_galois(int nThreads) {
     MARK();
     G = new galois::SharedMemSys();
     galois::setActiveThreads(nThreads);
-    std::cout << "I have " << galois::getActiveThreads() << " cores avaliable" << std::endl;
+    // std::cout << "I have " << galois::getActiveThreads() << " cores avaliable" << std::endl;
 }
 
 void delete_galois() {

@@ -48,13 +48,19 @@ test_cuda: src/test_cuda.cu libhelloworld.so ../../include/VLC/runtime.h
 test_rocm: src/test_rocm.cpp librocmhelloworld.so ../../include/VLC/runtime.h
 	$(CXX_COMPILER) $(CFLAGS) -o $@ $< -pthread -ldl
 
-heat3d_mpi: src/mpi/heat3d.cpp $(KOKKOS_LINK_DEPENDS) $(KOKKOS_CPP_DEPENDS)
+heat3d_mpi: src/heat3d/heat3d_mpi.cpp $(KOKKOS_LINK_DEPENDS) $(KOKKOS_CPP_DEPENDS)
 	$(CXX) $(KOKKOS_CPPFLAGS) $(KOKKOS_CXXFLAGS) $(CXXFLAGS) $(MPI_CFLAGS) $(MPI_CLDFLAGS) $(KOKKOS_CXXLDFLAGS) $(LINKFLAGS) $(EXTRA_PATH) $< $(KOKKOS_LIBS) $(LIB) -lmpi -o $@
 
-libheat3d.so: src/vlc/heat3d_vlc.cpp
+libheat3d.so: src/heat3d/heat3d_kernel.cpp
 	$(CXX) $(KOKKOS_CPPFLAGS) $(KOKKOS_CXXFLAGS) $(CXXFLAGS) $(KOKKOS_CXXLDFLAGS) $(LINKFLAGS) $(EXTRA_PATH) $< $(KOKKOS_LIBS) $(LIB) -shared -o $@
 
-heat3d_vlc: src/vlc/heat3d_launcher.cu libheat3d.so ../../include/VLC/runtime.h
+libheat3d_kernel.o: src/heat3d/heat3d_kernel.cpp
+	$(CXX) $(KOKKOS_CPPFLAGS) $(KOKKOS_CXXFLAGS) $(CXXFLAGS) $(KOKKOS_CXXLDFLAGS) $(LINKFLAGS) $(EXTRA_PATH) $< $(KOKKOS_LIBS) $(LIB) -shared -o $@
+
+heat3d: src/heat3d/heat3d.cpp src/heat3d/heat3d_kernel.cpp
+	$(CXX) $(KOKKOS_CPPFLAGS) $(KOKKOS_CXXFLAGS) $(CXXFLAGS) $(KOKKOS_CXXLDFLAGS) $(LINKFLAGS) $(EXTRA_PATH) $^ $(KOKKOS_LIBS) $(LIB) -o $@
+
+heat3d_vlc: src/heat3d/heat3d_vlc.cu libheat3d.so ../../include/VLC/runtime.h
 	nvcc -arch=sm_60 --cudart=shared --compiler-options '$(CXXFLAGS)' $< -o $@ -ldl
 
 initialize_time_vlc: src/initialize_time/vlc.cpp  libkokkos_compute.so ../../include/VLC/runtime.h
@@ -62,6 +68,16 @@ initialize_time_vlc: src/initialize_time/vlc.cpp  libkokkos_compute.so ../../inc
 
 initialize_time_base: src/initialize_time/base.cpp  libkokkos_compute.so
 	$(CXX) $(KOKKOS_CPPFLAGS) $(KOKKOS_CXXFLAGS) $(CXXFLAGS) $(KOKKOS_CXXLDFLAGS) $(LINKFLAGS) $(EXTRA_PATH) $< -L./ -lkokkos_compute $(KOKKOS_LIBS) $(LIB) -o $@
+
+# Benchmarks
+matvec: benchmarks/matvec.cpp
+	$(CXX) $(KOKKOS_CPPFLAGS) $(KOKKOS_CXXFLAGS) $(CXXFLAGS) $(KOKKOS_CXXLDFLAGS) $(LINKFLAGS) $(EXTRA_PATH) $< $(KOKKOS_LIBS) $(LIB) -o $@
+
+libmatvec.so: benchmarks/matvec_kernel.cpp $(KOKKOS_LINK_DEPENDS) $(KOKKOS_CPP_DEPENDS)
+	$(CXX) $(KOKKOS_CPPFLAGS) $(KOKKOS_CXXFLAGS) $(CXXFLAGS) $(KOKKOS_CXXLDFLAGS) $(LINKFLAGS) $(EXTRA_PATH) $< $(KOKKOS_LIBS) $(LIB) -shared -o $@
+
+matvec_vlc: benchmarks/matvec_vlc.cpp libmatvec.so ../../include/VLC/runtime.h
+	$(CXX_COMPILER) $(CFLAGS) -o $@ $< -pthread -ldl
 
 clean:
 	rm -f *.o *.so launcher_novlc

@@ -1,0 +1,3 @@
+cblas_dgemm
+dpotrf_
+dgesv_
