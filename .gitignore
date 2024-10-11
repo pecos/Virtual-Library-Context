@@ -1,1 +1,5 @@
 .vscode
+*.o
+*.so
+examples/openmp/launcher_vlc
+examples/openmp/launcher_vlc_transparency
