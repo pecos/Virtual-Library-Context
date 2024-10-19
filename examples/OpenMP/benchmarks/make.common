@@ -1,0 +1,27 @@
+PROGRAM  = $(BENCHMARK)$(VEXT).$(CLASS).x
+FCOMPILE = $(FC) -c $(F_INC) $(FFLAGS)
+CCOMPILE = $(CC) -c $(C_INC) $(CFLAGS)
+
+# Class "U" is used internally by the setparams program to mean
+# "unknown". This means that if you don't specify CLASS=
+# on the command line, you'll get an error. It would be nice
+# to be able to avoid this, but we'd have to get information
+# from the setparams back to the make program, which isn't easy. 
+CLASS=U
+
+
+COMMON=../common
+
+${COMMON}/c_print_results.o: ${COMMON}/c_print_results.c ../make.def
+	cd ${COMMON}; ${CCOMPILE} c_print_results.c
+
+${COMMON}/c_timers.o: ${COMMON}/c_timers.c ../make.def
+	cd ${COMMON}; ${CCOMPILE} c_timers.c
+
+${COMMON}/c_wtime.o: ${COMMON}/${WTIME} ../make.def
+	cd ${COMMON}; ${CCOMPILE} -o c_wtime.o ${COMMON}/${WTIME}
+
+
+.SUFFIXES:
+.SUFFIXES: .c .h .o
+

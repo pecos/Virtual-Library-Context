@@ -1,0 +1,16 @@
+dnnl_engine_create
+dnnl_stream_create
+dnnl_primitive_create
+dnnl_memory_destroy
+dnnl_memory_get_data_handle
+dnnl_stream_wait
+dnnl_status2str
+dnnl_matmul_primitive_desc_create
+dnnl_primitive_desc_destroy
+dnnl_primitive_destroy
+dnnl_memory_desc_create_with_tag
+dnnl_stream_destroy
+dnnl_primitive_execute
+dnnl_engine_destroy
+dnnl_memory_create
+dnnl_engine_get_count
