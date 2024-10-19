@@ -13,4 +13,3 @@ target_include_directories(test-dlmopen PUBLIC)
 target_link_libraries(test-dlmopen PRIVATE virtual-library-context)
 target_compile_options(test-dlmopen PRIVATE -fPIC -ldl -g)
 target_compile_features(test-dlmopen PUBLIC cxx_std_23)
-

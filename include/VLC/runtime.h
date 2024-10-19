@@ -49,10 +49,10 @@ public:
 
     /**
      * intialization VLC runtime.
-     * 
+     *
      * A fork will happen, where parent process becomes VLC manager,
      * application continues on child process.
-     * 
+     *
      * Manager process will not exit until application process is finished.
     */
     void initialize() {
@@ -67,7 +67,7 @@ public:
             std::exit(EXIT_FAILURE);
         } else if (pid == 0) {
             // this is application process (child)
-            
+
             // set a BPF filter on specific syscall for ptrace
             configure_seccomp_bpf();
             raise(SIGSTOP); // stop and let monitor process know
@@ -75,7 +75,7 @@ public:
             // return to the application's main()
             std::cout << "VLC: application start." << std::endl;
             return;
-        } else {  
+        } else {
             // this is manager process (parent)
             std::cout << "VLC: manager start." << std::endl;
             application_pid = pid;
@@ -105,7 +105,7 @@ public:
             intercept_syscall();
 
             // exit when the application finished
-            std::exit(EXIT_SUCCESS);  
+            std::exit(EXIT_SUCCESS);
         }
     }
 
@@ -118,11 +118,10 @@ private:
     std::unordered_map<pid_t, cpu_set_t> virtual_cpu_sets;
     pid_t application_pid = 0;
     std::unordered_map<pid_t, ChildState> application_child_states;  // map of child to states of the application process (including itself)
-    int forge_sched_getaffinity_count = 0;
 
     /**
      * Configure a BPF filter for ptrace + seccomp.
-     * 
+     *
      * Will mark the caller process as tracee.
      * This allows the tracer only stop on specific syscall
      * that related to resouces query rather than all of them.
@@ -186,7 +185,7 @@ private:
             if (child_waited == -1) {
                 VLC_DIE("VLC: unable to intercept syscall, %s", strerror(errno));
             }
-            
+
             VLC_DEBUG("VLC: stop application, pid=%d.", child_waited);
 
             // if haven't seen this pid before
@@ -211,7 +210,7 @@ private:
                     VLC_DIE("VLC: unable to intercept syscall, %s", strerror(errno));
                 }
                 long syscall = regs.orig_rax;
-     
+
                 if (syscall == SYS_openat) {  // capture openat()
                     forge_openat(child_waited, &regs.rsi);
                     ptrace(PTRACE_SETREGS, child_waited, NULL, &regs);
@@ -228,7 +227,7 @@ private:
                 }
 
                 /*** Phase 3: leaving syscall **/
-                
+
                 // retrive syscall arguments
                 if (ptrace(PTRACE_GETREGS, child_waited, NULL, &regs) == -1) {
                     VLC_DIE("VLC: unable to intercept syscall, %s", strerror(errno));
@@ -266,10 +265,10 @@ private:
                 } else {
                     // if the child stop event is already caputured
                     assert(application_child_states[new_child] == ChildState::NEW_STOPPED && "Child state invalid");
-                
+
                     // trace and let child continue
                     if (ptrace(PTRACE_SETOPTIONS, new_child, NULL, PTRACE_O_TRACEFORK | PTRACE_O_TRACECLONE | PTRACE_O_TRACESECCOMP | PTRACE_O_EXITKILL) == -1) {
-                        
+
                     }
 
                     VLC_DEBUG("VLC: child is traced and resumed, pid=%d", new_child);
@@ -282,7 +281,7 @@ private:
             } else if (WIFSTOPPED(status) && WSTOPSIG(status) == SIGSTOP) {
                 // a child is stopped after created, and fork event already recived
                 assert(application_child_states[child_waited] == ChildState::NEW_FORKED && "Child state is invalid");
-                
+
                 // trace and let child continue
                 if (ptrace(PTRACE_SETOPTIONS, child_waited, NULL, PTRACE_O_TRACEFORK | PTRACE_O_TRACECLONE | PTRACE_O_TRACESECCOMP | PTRACE_O_EXITKILL) == -1) {
                     VLC_DIE("VLC: unable to config tracer");
@@ -298,20 +297,20 @@ private:
                 }
 
                 if (WIFSIGNALED(status)) {
-                    VLC_DEBUG("VLC: child terminated by signal %d (%s) %s, pid=%d", WTERMSIG(status), strsignal(WTERMSIG(status)), 
+                    VLC_DEBUG("VLC: child terminated by signal %d (%s) %s, pid=%d", WTERMSIG(status), strsignal(WTERMSIG(status)),
                         (WCOREDUMP(status) ? " (core dumped)" : ""), child_waited);
                 }
 
                 // child has exited or terminated
                 application_child_states.erase(child_waited);
-                
+
                 if (application_child_states.size() == 0) {
                     std::cout << "VLC: manager exit since application has exited (NOT A ERROR)." << std::endl;
                     break;
-                } 
+                }
 
-                // child already exist, skip the rest 
-                continue; 
+                // child already exist, skip the rest
+                continue;
             } else if (status >> 8 == SIGUSR1) {
                 // this is a signal for communication between monitor and application
                 VLC_DEBUG("VLC: recive SIGUSR1, continued, pid=%d", child_waited);
@@ -337,7 +336,7 @@ private:
      * modify the result of sched_getaffinity().
      * will replace original content in `user_mask_ptr`
      * with a virtualized cpu affinity.
-     * 
+     *
      * @param len the number of bytes for user_mask_ptr
      * @param user_mask_ptr a remote address of application's cpu set buffer
      * Its content will be modified.
@@ -357,7 +356,7 @@ private:
 
             virtual_cpu_sets[pid] = std::move(virtual_cpu_set);
         }
-        
+
         // copy the virtual cpu set into application's memory
         iovec local_iov[1];
         local_iov[0].iov_base = &(virtual_cpu_sets[pid]);
@@ -376,17 +375,17 @@ private:
 
     /**
      * modify the result of openat().
-     * 
+     *
      * if it opening a cpu resouce file
      * will replace filename so it will open a forged file instead.
-     * 
+     *
      * @param user_mask_ptr a remote address of filename
      * Its content will be modified.
     */
     void forge_openat(pid_t pid, unsigned long long *filename_ptr) {
         char *filename_str = ptrace_peak_string(pid, *filename_ptr);
         VLC_DEBUG("VLC: application try to open %s", filename_str);
-        
+
         // check if the path is cpu resouce file
         // modify the pointer value to a pre defined str in the application space
         if (strcmp(filename_str, "/sys/devices/system/cpu") == 0) {
@@ -395,12 +394,12 @@ private:
             *filename_ptr = (unsigned long long) FORGED_CPU_ONLINE_FILE;
         } else if (strcmp(filename_str, "/proc/cpuinfo") == 0) {
             *filename_ptr = (unsigned long long) FORGED_CPU_INFO_FILE;
-        } 
+        }
         // else if (strcmp(filename_str, "/proc/meminfo") == 0) {
         //     resource.set_avaliable_mem(0, 8);
         //     resource.generate_mem_info_file(0, FORGED_MEM_INFO_FILE_BUFFER);
         //     *filename_ptr = (unsigned long long) FORGED_MEM_INFO_FILE_BUFFER;
-        // } 
+        // }
         else {
             free(filename_str);
             return;
@@ -412,12 +411,12 @@ private:
 
     /**
      * read string from remote address space
-     * 
+     *
      * @param pid id of target process
      * @param addr remote address in target process's address space
-     * 
+     *
      * @return the pointer to the string
-     * 
+     *
      * @note caller is responsible to free the returned string
     */
     char *ptrace_peak_string(pid_t pid, unsigned long long addr) {
@@ -452,7 +451,7 @@ private:
         return str;
     }
 };
-    
+
 // void enable() {
 //     std::thread::id this_id = std::this_thread::get_id();
 // }
