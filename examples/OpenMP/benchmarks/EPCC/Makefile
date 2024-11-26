@@ -1,11 +1,13 @@
 include ../make.def
 
 .c.o:
-	${CC} $(CFLAGS) -c $*.c
+	${CC} $(CFLAGS) -c $*.c -fPIC
 
-ARRAYOBJS = arraybench_$(IDA).o common.o
+ARRAYOBJS = arraybench.o common.o
 
-ARRAYOBJS_VLC = arraybench_vlc_$(IDA).o common.o
+ARRAYOBJS_VLC = arraybench_vlc.o common.o
+
+ARRAYOBJS_SHARE = arraybench_share.o common.o
 
 # all:
 # 	$(MAKE) IDA=1 arraybench
@@ -21,24 +23,30 @@ ARRAYOBJS_VLC = arraybench_vlc_$(IDA).o common.o
 # 	$(MAKE) IDA=59049 arraybench
 
 # Multiple header files due to multiple array sizes, makes header file arraybench_*.h
-arraybench_$(IDA).h: arraybench.h
+arraybench_ida.h: arraybench.h
 	$(CC) -DIDA=$(IDA) -E arraybench.h -o $@
 
 # Multiple object files due to multiple array sizes, makes object file arraybench_*.o
-arraybench_$(IDA).o: arraybench_$(IDA).h arraybench.c
+arraybench.o:arraybench_ida.h arraybench.c
 	$(CC) $(CFLAGS) -DIDA=$(IDA) arraybench.c -c -o $@
 
-arraybench_vlc_$(IDA).o: arraybench_$(IDA).h arraybench_transparent.cpp
+arraybench_share.o:arraybench_ida.h arraybench_share.c
+	$(CC) $(CFLAGS) -DIDA=$(IDA) arraybench_share.c -c -o $@ -fPIC
+
+arraybench_vlc.o: arraybench_ida.h arraybench_transparent.cpp
 	$(CC) $(CFLAGS) -DIDA=$(IDA) $(C_INC) arraybench_transparent.cpp -c -o $@
 
 # Multiple executables due to multiple array sizes, makes exe file arraybench_*
 arraybench: $(ARRAYOBJS) arraybench.c
 	$(CC) $(CFLAGS) $(ARRAYOBJS) -o $@
 
-arraybench_transparent: $(ARRAYOBJS_VLC) arraybench.c
+arraybench_transparent: $(ARRAYOBJS_VLC) arraybench_transparent.cpp
 	$(CC) $(CFLAGS) $(ARRAYOBJS_VLC) -o $@
 
+arraybench.so: $(ARRAYOBJS_SHARE) arraybench_share.c
+	$(CC) $(CFLAGS) $(ARRAYOBJS_SHARE) -shared -o $@
+
 clean:
-	rm -f arraybench_$(IDA).* arraybench_vlc_$(IDA).* common.o arraybench
+	rm -f arraybench_ida.h arraybench_vlc_$(IDA).* common.o arraybench arraybench_share.o arraybench.o
 
 

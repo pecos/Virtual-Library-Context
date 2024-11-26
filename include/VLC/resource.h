@@ -123,16 +123,19 @@ struct Context {
     int id;
     pid_t thread_id;
     char cpu_str[256] = {0};
+    bool valid = false;
 
     Context() = default;
 
     Context(int vlc_id) {
         id = vlc_id;
+        valid = true;
     }
 
     Context(int vlc_id, pid_t thread_id) {
         id = vlc_id;
         this->thread_id = thread_id;
+        valid = true;
     }
 
     inline void register_thread(pid_t thread_id) {
@@ -151,6 +154,14 @@ struct Context {
     */
     inline void avaliable_cpu(const char *cpu_str) {
         strcpy(this->cpu_str, cpu_str);
+    }
+
+    inline void reset() {
+        valid = false;
+    }
+
+    inline bool is_valid() {
+        return valid;
     }
 };
 

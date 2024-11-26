@@ -13,13 +13,13 @@ CLASS=U
 COMMON=../common
 
 ${COMMON}/c_print_results.o: ${COMMON}/c_print_results.c ../make.def
-	cd ${COMMON}; ${CCOMPILE} c_print_results.c
+	cd ${COMMON}; ${CCOMPILE} c_print_results.c -fPIC
 
 ${COMMON}/c_timers.o: ${COMMON}/c_timers.c ../make.def
-	cd ${COMMON}; ${CCOMPILE} c_timers.c
+	cd ${COMMON}; ${CCOMPILE} c_timers.c -fPIC
 
 ${COMMON}/c_wtime.o: ${COMMON}/${WTIME} ../make.def
-	cd ${COMMON}; ${CCOMPILE} -o c_wtime.o ${COMMON}/${WTIME}
+	cd ${COMMON}; ${CCOMPILE} -o c_wtime.o ${COMMON}/${WTIME} -fPIC
 
 
 .SUFFIXES:

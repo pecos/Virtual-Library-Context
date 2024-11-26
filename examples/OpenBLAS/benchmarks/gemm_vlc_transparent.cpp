@@ -8,6 +8,7 @@
 #include <random>
 #include <string>
 #include <thread>
+#include <cstring>
 
 #include <cblas.h>
 #include <lapack.h>
@@ -25,7 +26,7 @@ void F_GEMM(int vlc_id, double* const& x, double* const& y, double* const& z, co
     VLC::Context vlc(vlc_id, gettid());
     vlc.avaliable_cpu("0-23");
     VLC::register_vlc(&vlc);
-    VLC::Loader loader("/lib/x86_64-linux-gnu/libopenblas64.so.0", vlc_id, true);
+    VLC::Loader loader("/lib/x86_64-linux-gnu/libopenblas.so.0", vlc_id, true);
     vlc_init_end = std::chrono::high_resolution_clock::now();
     std::cout << "PERF: VLC init finished in " << std::chrono::duration_cast<std::chrono::milliseconds>((vlc_init_end - vlc_init_start) + (runtime_init_end - runtime_init_start)).count() << "ms" << std::endl;
    
@@ -33,18 +34,21 @@ void F_GEMM(int vlc_id, double* const& x, double* const& y, double* const& z, co
     int p = 0;
     auto t0 = std::chrono::system_clock::now();
     auto t1 = std::chrono::system_clock::now();
-    std::random_device device;
-    std::mt19937 generator(device());
+    // std::random_device device;
+    std::mt19937 generator(101);
     std::normal_distribution<double> normal(0.0, 1.0);
+
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            p = i * n + j;
+            y[p] = normal(generator);
+            z[p] = normal(generator);
+        }
+    }
+
     for (int i = 0; i < nrep; i++)
     {
-        for (int i = 0; i < n; i++) {
-            for (int j = 0; j < n; j++) {
-                p = i * n + j;
-                y[p] = normal(generator);
-                z[p] = normal(generator);
-            }
-        }
+        memset(x, 0.0,  sizeof(double) * n * n);
 
         t0 = std::chrono::system_clock::now();
         cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, n, n, n, 1.0, y, n, z, n, 0.0, x, n);

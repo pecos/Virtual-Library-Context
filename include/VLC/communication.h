@@ -123,10 +123,8 @@ void monitor_sig_hanlder(int sig) {
 
     VLC_DEBUG("VLC: recived signal");
 
-    SharedMem shmem = get_vlc_shared_mem();
-
     VLC::Context vlc_config;
-    shmem.read((void *) &vlc_config);
+    VLC_SHARED_MEM.read((void *) &vlc_config);
 
     // save the vlc config 
     VLC::Internal::pid_to_vlc_id[vlc_config.thread_id] = vlc_config.id;
@@ -169,13 +167,11 @@ void monitor_sig_hanlder(int sig) {
 
     // send SIGUSR1 signal back to application
     // so it knows the content is already processed by VLC monitor
-    kill(vlc_config.thread_id, SIGUSR1);
-    VLC_DEBUG("VLC: send signal to %d", vlc_config.thread_id);
+    // kill(vlc_config.thread_id, SIGUSR1);
+    vlc_config.reset();
+    VLC_SHARED_MEM.write((void *) &vlc_config);
+    VLC_DEBUG("VLC: notify %d that message is read", vlc_config.thread_id);
 }
-
-// this flag will be set to true 
-// when monitor send a signal to show it has been notified 
-bool monitor_notified = false;
 
 /**
  * A signal handler for application's use.
@@ -186,7 +182,6 @@ bool monitor_notified = false;
 void application_sig_handler(int sig) {
     signal(SIGUSR1, application_sig_handler);
     VLC_DEBUG("application: recived signal");
-    monitor_notified = true;
 }
 
 /**
@@ -199,21 +194,18 @@ void notify_monitor_and_wait() {
     //reset signal hanlder
     signal(SIGUSR1, application_sig_handler); 
 
-    // clear previous flag
-    monitor_notified = false;
-
     VLC_DEBUG("application: send signal");
     kill(MONITOR_PID, SIGUSR1);
     
-    // waiting on a signal from monitor
+    // waiting monitor reset the memory
     // which indicate the message is read and processed
-    // while (true) {
-    //     if (monitor_notified) {
-    //         monitor_notified = false;
-    //         break;
-    //     }
-    // }
-    sleep(1);
+    VLC::Context vlc_config;
+    while (true) {
+        VLC_SHARED_MEM.read((void *) &vlc_config);
+        if (!vlc_config.is_valid()) {
+            break;
+        }
+    }
 }
 
 }

@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <random>
 #include <string>
+#include <cstring>
 
 #include <cblas.h>
 #include <lapack.h>
@@ -19,12 +20,12 @@ std::chrono::_V2::system_clock::time_point runtime_init_end;
 std::chrono::_V2::system_clock::time_point vlc_init_start;
 std::chrono::_V2::system_clock::time_point vlc_init_end;
 
-void F_GESV(int vlc_id, double* const& v, double* const& y, double* const& b, const int& n, const int& nrep) {
+void F_GESV(int vlc_id, double* const& y, double* const& b, const int& n, const int& nrep) {
     vlc_init_start = std::chrono::high_resolution_clock::now();
     VLC::Context vlc(vlc_id, gettid());
     vlc.avaliable_cpu("0-23");
     VLC::register_vlc(&vlc);
-    VLC::Loader loader("/lib/x86_64-linux-gnu/libopenblas64.so.0", vlc_id, true);
+    VLC::Loader loader("/lib/x86_64-linux-gnu/libopenblas.so.0", vlc_id, true);
     vlc_init_end = std::chrono::high_resolution_clock::now();
     std::cout << "PERF: VLC init finished in " << std::chrono::duration_cast<std::chrono::milliseconds>((vlc_init_end - vlc_init_start) + (runtime_init_end - runtime_init_start)).count() << "ms" << std::endl;
      
@@ -33,24 +34,27 @@ void F_GESV(int vlc_id, double* const& v, double* const& y, double* const& b, co
     double* y2 = new double[n * n];
     auto t0 = std::chrono::system_clock::now();
     auto t1 = std::chrono::system_clock::now();
-    std::random_device device;
-    std::mt19937 generator(device());
+    // std::random_device device;
+    std::mt19937 generator(101);
     std::normal_distribution<double> normal(0.0, 1.0);
 
-    for (int i = 0; i < nrep; i++) {
-        for (int i = 0; i < n; i++) {
-            for (int j = 0; j < n; j++) {
-                int p = i * n + j;
-                int q = j * n + i;
-                y1[p] = normal(generator);
-                y2[q] = y1[p];
-            }
-            b[i] = normal(generator);
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            int p = i * n + j;
+            int q = j * n + i;
+            y1[p] = normal(generator);
+            y2[q] = y1[p];
         }
-        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, n, n, n, 1.0, y1, n, y2, n, 0.0, y, n);
+        b[i] = normal(generator);
+    }
 
+    for (int i = 0; i < nrep; i++) {
+        memset(y, 0.0,  sizeof(double) * n * n);
         int* ipiv = new int[n];
         int info;
+
+        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, n, n, n, 1.0, y1, n, y2, n, 0.0, y, n);
+
         t0 = std::chrono::system_clock::now();
         // Call dgesv_ directly
         int j = 0;
@@ -96,7 +100,6 @@ int main(int argc, char** argv)
     }
 
     double* y = new double[n*n];
-    double* v = new double[n];
     double* b = new double[n];
     int p = 0;
     for (int i = 0; i < n; i++) {
@@ -104,18 +107,16 @@ int main(int argc, char** argv)
             p = i * n + j;
             y[p] = 0.0;
         }
-        v[i] = 0;
         b[i] = 0;
     }   
 
     std::thread t;
 
     // Perform Martix Multiplication
-    t = std::thread(F_GESV, 1, v, y, b, n, nrep);
+    t = std::thread(F_GESV, 1, y, b, n, nrep);
     t.join();
 
     delete[] y;
-    delete[] v;
     delete[] b;
     return 0;
 }

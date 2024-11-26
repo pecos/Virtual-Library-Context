@@ -1,0 +1,14 @@
+[
+    {
+        "name": "gptlite",
+        "path": "benchmarks/GPTlite/libgptlite.so",
+        "entry_point_symbol": "_Z7gptliteiPPKcP17pthread_barrier_t",
+        "argv": []
+    },
+    {
+        "name": "dnn",
+        "path": "benchmarks/DNN/libdnn.so",
+        "entry_point_symbol": "_Z3dnniPPKcP17pthread_barrier_t",
+        "argv": []
+    }
+]

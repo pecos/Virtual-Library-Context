@@ -5,7 +5,7 @@ VLC_CALLBACK_FILE="vlc_callback.c"
 LIB_NAME=$(basename $LIB_FILE)        
 
 rm ${LIB_NAME}
-# python3 ../../lib/Implib.so/implib-gen.py --no-lazy-load --verbose --symbol-list=$SYMBOL_FILE $LIB_FILE --dlopen-callback=dlopen_callback
+python3 ../../lib/Implib.so/implib-gen.py --no-lazy-load --verbose --symbol-list=$SYMBOL_FILE $LIB_FILE --dlopen-callback=dlopen_callback --vlc=2
 gcc -DIMPLIB_EXPORT_SHIMS -fPIC -shared ${LIB_NAME}.tramp.S ${LIB_NAME}.init.c vlc_hashmap.c $VLC_CALLBACK_FILE -o ${LIB_NAME} -ldl
 
 rm -f address.*

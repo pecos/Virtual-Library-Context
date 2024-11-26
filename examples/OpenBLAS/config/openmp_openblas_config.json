@@ -1,0 +1,19 @@
+[
+    {
+        "name": "hotspot3D",
+        "path": "../OpenMP/hotspot3D.so",
+        "entry_point_symbol": "hotspot3D",
+        "argv": ["512", 
+                "8", 
+                "1500", 
+                "../OpenMP/benchmarks/hotspot3D/data/power_512x8",
+                "../OpenMP/benchmarks/hotspot3D/data/temp_512x8",
+                "../OpenMP/output.out"]
+    },
+    {
+        "name": "cholesky",
+        "path": "cholesky.so",
+        "entry_point_symbol": "_Z8choleskyiPPcP17pthread_barrier_t",
+        "argv": ["10000", "4"]
+    }
+]

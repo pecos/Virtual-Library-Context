@@ -1,0 +1,19 @@
+[
+    {
+        "name": "hotspot3D",
+        "path": "hotspot3D.so",
+        "entry_point_symbol": "hotspot3D",
+        "argv": ["512", 
+                "8", 
+                "1500", 
+                "benchmarks/hotspot3D/data/power_512x8",
+                "benchmarks/hotspot3D/data/temp_512x8",
+                "output.out"]
+    },
+    {
+        "name": "euler3d",
+        "path": "cfd.so",
+        "entry_point_symbol": "_Z7euler3diPPcP17pthread_barrier_t",
+        "argv": ["benchmarks/cfd/data/fvcorr.domn.193K"]
+    }
+]

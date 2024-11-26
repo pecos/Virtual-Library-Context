@@ -7,7 +7,7 @@
 #define COMPILETIME "23 Sep 2024"
 #define NPBVERSION "3.4.3"
 #define CC "g++"
-#define CFLAGS "-O3 -fopenmp -std=c++17"
+#define CFLAGS "-O2 -fopenmp -std=c++17"
 #define CLINK "$(CC)"
 #define CLINKFLAGS "$(CFLAGS)"
 #define C_LIB "-lm"

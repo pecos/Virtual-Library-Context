@@ -1,6 +1,7 @@
 .vscode
 *.o
 *.so
-examples/openmp/launcher_vlc
-examples/openmp/launcher_vlc_transparency
+examples/Torch/libtorch
+rodinia_3.1
+parboil
 build/

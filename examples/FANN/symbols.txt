@@ -33,3 +33,4 @@ fann_save_train_to_fixed
 fann_get_MSE
 fann_init_weights
 fann_train_on_data
+fann_set_callback

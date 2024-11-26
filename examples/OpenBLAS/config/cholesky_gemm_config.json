@@ -1,0 +1,14 @@
+[
+    {
+        "name": "cholesky",
+        "path": "cholesky.so",
+        "entry_point_symbol": "_Z8choleskyiPPcP17pthread_barrier_t",
+        "argv": ["10000", "4"]
+    },
+    {
+        "name": "gemm",
+        "path": "gemm.so",
+        "entry_point_symbol": "_Z4gemmiPPcP17pthread_barrier_t",
+        "argv": ["10000", "4"]
+    }
+]

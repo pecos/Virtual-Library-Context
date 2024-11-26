@@ -23,7 +23,7 @@ using ORDINAL_T       = int64_t;
 using CONST_ORDINAL_T = const ORDINAL_T;
 using VALUE_T         = double;
 
-#define DEFAULT_DIM_SIZE 4096
+#define DEFAULT_DIM_SIZE 32768
 #define LEAGUE_SIZE 32
 #define TEAM_SIZE 256
 #define VEC_LEN 1

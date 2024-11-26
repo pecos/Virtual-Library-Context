@@ -1,0 +1,171 @@
+#include <thread>
+#include <stdio.h>
+#include <iostream>
+#include <chrono>
+#include <dlfcn.h>
+#include <unistd.h>
+
+pthread_barrier_t barrier;
+
+typedef int (*is_t)();
+typedef int (*dc_t)(int argc, char * argv[]);
+typedef int (*bench_t)(int argc, char * argv[]);
+typedef int (*BFSGraph_t)(int argc, char * argv[]);
+typedef int (*kmeans_t)(int argc, char * argv[], pthread_barrier_t * barrier);
+typedef int (*hotspot3D_t)(int argc, char * argv[], pthread_barrier_t * barrier);
+typedef int (*euler3d_t)(int argc, char * argv[], pthread_barrier_t * barrier);
+
+auto start_time = std::chrono::system_clock::now();
+
+void launch_is() {
+    void *handle = dlopen("is.so", RTLD_LAZY | RTLD_LOCAL);
+    if (!handle) {
+        fprintf(stderr, "%s\n", dlerror());
+        exit(EXIT_FAILURE);
+    }
+
+    auto is = (is_t) dlsym(handle, "_Z2isv");
+    if (is == NULL) {
+        fprintf(stderr, "%s\n", dlerror());
+        exit(EXIT_FAILURE);
+    }
+
+    is();
+
+    auto t1 = std::chrono::system_clock::now();
+    std::cout << "IS end time: " << ((std::chrono::duration<double>) (t1 - start_time)).count() << "s\n";
+}
+
+void launch_dc(int argc, char * argv[]) {
+    void *handle = dlopen("dc.so", RTLD_LAZY | RTLD_LOCAL);
+    if (!handle) {
+        fprintf(stderr, "%s\n", dlerror());
+        exit(EXIT_FAILURE);
+    }
+
+    auto dc = (dc_t) dlsym(handle, "_Z2dciPPc");
+    if (dc == NULL) {
+        fprintf(stderr, "%s\n", dlerror());
+        exit(EXIT_FAILURE);
+    }
+
+    dc(argc, argv);
+
+    auto t1 = std::chrono::system_clock::now();
+    std::cout << "DS end time: " << ((std::chrono::duration<double>) (t1 - start_time)).count() << "s\n";
+}
+
+void launch_bench(int argc, char *argv[]) {
+    void *handle = dlmopen(LM_ID_NEWLM, "arraybench.so", RTLD_LAZY | RTLD_LOCAL);
+    if (!handle) {
+        fprintf(stderr, "%s\n", dlerror());
+        exit(EXIT_FAILURE);
+    }
+    
+    auto bench = (bench_t) dlsym(handle, "_Z5benchiPPc");
+    if (bench == NULL) {
+        fprintf(stderr, "%s\n", dlerror());
+        exit(EXIT_FAILURE);
+    }
+    std::cout << "!!!" << std::endl;
+    bench(argc, argv);
+    std::cout << "!!!!" << std::endl;
+    auto t1 = std::chrono::system_clock::now();
+    std::cout << "Arraybench end time: " << ((std::chrono::duration<double>) (t1 - start_time)).count() << "s\n";
+}
+
+void launch_bfs(int argc, char *argv[]) {
+    void *handle = dlmopen(LM_ID_NEWLM, "bfs.so", RTLD_LAZY | RTLD_LOCAL);
+    if (!handle) {
+        fprintf(stderr, "%s\n", dlerror());
+        exit(EXIT_FAILURE);
+    }
+    
+    auto BFSGraph = (BFSGraph_t) dlsym(handle, "_Z8BFSGraphiPPc");
+    if (BFSGraph == NULL) {
+        fprintf(stderr, "%s\n", dlerror());
+        exit(EXIT_FAILURE);
+    }
+    BFSGraph(argc, argv);
+    auto t1 = std::chrono::system_clock::now();
+    std::cout << "BFSGraph end time: " << ((std::chrono::duration<double>) (t1 - start_time)).count() << "s\n";
+}
+
+void launch_kmeans(int argc, char *argv[]) {
+    void *handle = dlmopen(LM_ID_NEWLM, "kmeans.so", RTLD_LAZY | RTLD_LOCAL);
+    if (!handle) {
+        fprintf(stderr, "%s\n", dlerror());
+        exit(EXIT_FAILURE);
+    }
+    
+    auto kmeans = (kmeans_t) dlsym(handle, "kmeans");
+    if (kmeans == NULL) {
+        fprintf(stderr, "%s\n", dlerror());
+        exit(EXIT_FAILURE);
+    }
+    kmeans(argc, argv, &barrier);
+    auto t1 = std::chrono::system_clock::now();
+    std::cout << "kmeans end time: " << ((std::chrono::duration<double>) (t1 - start_time)).count() << "s\n";
+}
+
+void launch_hotstop3D(int argc, char *argv[]) {
+    void *handle = dlmopen(LM_ID_NEWLM, "hotspot3D.so", RTLD_LAZY | RTLD_LOCAL);
+    if (!handle) {
+        fprintf(stderr, "%s\n", dlerror());
+        exit(EXIT_FAILURE);
+    }
+    
+    auto hotspot3D = (hotspot3D_t) dlsym(handle, "hotspot3D");
+    if (hotspot3D == NULL) {
+        fprintf(stderr, "%s\n", dlerror());
+        exit(EXIT_FAILURE);
+    }
+    hotspot3D(argc, argv, &barrier);
+    auto t1 = std::chrono::system_clock::now();
+    std::cout << "hotspot3D end time: " << ((std::chrono::duration<double>) (t1 - start_time)).count() << "s\n";
+}
+
+void launch_cfd(int argc, char *argv[]) {
+    void *handle = dlmopen(LM_ID_NEWLM, "cfd.so", RTLD_LAZY | RTLD_LOCAL);
+    if (!handle) {
+        fprintf(stderr, "%s\n", dlerror());
+        exit(EXIT_FAILURE);
+    }
+    
+    auto euler3d = (euler3d_t) dlsym(handle, "_Z7euler3diPPcP17pthread_barrier_t");
+    if (euler3d == NULL) {
+        fprintf(stderr, "%s\n", dlerror());
+        exit(EXIT_FAILURE);
+    }
+    euler3d(argc, argv, &barrier);
+    auto t1 = std::chrono::system_clock::now();
+    std::cout << "euler3d end time: " << ((std::chrono::duration<double>) (t1 - start_time)).count() << "s\n";
+}
+
+int main(int argc, char * argv[]) {
+    std::cout << "Begin!" << std::endl;
+
+    pthread_barrier_init(&barrier, NULL, 2);
+
+
+    int cfd_argc = 2;
+    char* cfd_argv[] = {argv[0], "benchmarks/cfd/data/fvcorr.domn.193K"};
+    // auto is = std::thread(launch_is);
+    // auto dc = std::thread(launch_dc, argc, argv);
+    // auto arraybench = std::thread(launch_bench, argc, argv);
+    // auto bfs = std::thread(launch_bfs, argc, argv);
+    // auto kmeans = std::thread(launch_kmeans, argc, argv);
+    auto hotstop3D = std::thread(launch_hotstop3D, argc, argv);
+    auto cfd = std::thread(launch_cfd, cfd_argc, cfd_argv);
+    
+    // is.join();
+    // dc.join();
+    // arraybench.join();
+    // bfs.join();
+    // kmeans.join();
+    hotstop3D.join();
+    cfd.join();
+    
+
+    return 0;
+}

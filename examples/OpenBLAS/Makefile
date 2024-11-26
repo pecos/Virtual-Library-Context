@@ -62,6 +62,18 @@ gemm: benchmarks/gemm.cpp
 linear_equation: benchmarks/linear_equation.cpp
 	$(CXX) $(CFLAGS) -o $@ $^ -lopenblas
 
+cholesky.so: benchmarks/cholesky.cpp
+	$(CXX) $(CFLAGS) -shared -o $@ $^ -lopenblas -fPIC
+	
+gemm.so: benchmarks/gemm.cpp
+	$(CXX) $(CFLAGS) -shared -o $@ $^ -lopenblas -fPIC
+
+linear_equation.so: benchmarks/linear_equation.cpp
+	$(CXX) $(CFLAGS) -shared -o $@ $^ -lopenblas -fPIC
+
+parallel: benchmarks/parallel.cpp cholesky.so gemm.so linear_equation.so
+	$(CXX) $(CFLAGS) -o $@ $<
+
 gemm_vlc_transparent: benchmarks/gemm_vlc_transparent.cpp  ../../include/VLC/runtime.h
 	$(CXX) $(CFLAGS) -o $@ $< -lopenblas
 
@@ -71,5 +83,8 @@ cholesky_vlc_transparent: benchmarks/cholesky_vlc_transparent.cpp ../../include/
 linear_equation_vlc_transparent: benchmarks/linear_equation_vlc_transparent.cpp  ../../include/VLC/runtime.h
 	$(CXX) $(CFLAGS) -o $@ $< -lopenblas
 
+parallel_vlc: benchmarks/parallel_vlc.cpp  ../../include/VLC/runtime.h cholesky.so gemm.so linear_equation.so
+	$(CXX) $(CFLAGS) -o $@ $<
+
 clean:
-	rm -f *.so dgemm cholesky gemm linear_equation gemm_vlc_transparent linear_equation_vlc_transparent cholesky_vlc_transparent initialize_time_base initialize_time_vlc with_openmp_vlc openblas_alone openmp_alone with_openmp_seq with_openmp_parallel matmul_launcher_seq matmul_launcher_vlc matmul_launcher_multithread matmul_launcher_vlc_transparency *.so.0 *.S *.ver *.init.c vlc_callback.c vlc_hashmap.c vlc_hashmap.h
+	rm -f *.so parallel parallel_vlc dgemm cholesky gemm linear_equation gemm_vlc_transparent linear_equation_vlc_transparent cholesky_vlc_transparent initialize_time_base initialize_time_vlc with_openmp_vlc openblas_alone openmp_alone with_openmp_seq with_openmp_parallel matmul_launcher_seq matmul_launcher_vlc matmul_launcher_multithread matmul_launcher_vlc_transparency *.so.0 *.S *.ver *.init.c vlc_callback.c vlc_hashmap.c vlc_hashmap.h

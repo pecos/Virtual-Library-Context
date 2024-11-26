@@ -11,6 +11,9 @@ steepness_train: benchmarks/steepness_train.c
 
 xor_train: benchmarks/xor_train.c
 	$(CXX) $(CFLAGS) -o $@ $< -lfann
+
+parallel: benchmarks/parallel.cpp
+	$(CXX) $(CFLAGS) -o $@ $< -lfann
 	
 cascade_train_transparent: benchmarks/cascade_train_transparent.cpp ../../include/VLC/runtime.h
 	$(CXX) $(CFLAGS) -o $@ $< -lfann
@@ -19,6 +22,9 @@ steepness_train_transparent: benchmarks/steepness_train_transparent.cpp ../../in
 	$(CXX) $(CFLAGS) -o $@ $< -lfann
 
 xor_train_transparent: benchmarks/xor_train_transparent.cpp ../../include/VLC/runtime.h
+	$(CXX) $(CFLAGS) -o $@ $< -lfann
+
+parallel_vlc: benchmarks/parallel_vlc.cpp ../../include/VLC/runtime.h
 	$(CXX) $(CFLAGS) -o $@ $< -lfann
 
 clean:

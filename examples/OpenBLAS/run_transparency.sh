@@ -1,7 +1,7 @@
 #!/bin/bash
 cd $(dirname "$0")
 
-LIB_FILE="/lib/x86_64-linux-gnu/libopenblas64.so.0"
+LIB_FILE="/lib/x86_64-linux-gnu/libopenblas.so.0"
 SYMBOL_FILE="symbols.txt"
 NUM_VLC=2
 LIB_NAME=$(basename $LIB_FILE)        

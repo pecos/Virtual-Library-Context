@@ -1,0 +1,192 @@
+#include <thread>
+#include <stdio.h>
+#include <iostream>
+#include <chrono>
+#include <dlfcn.h>
+#include <unistd.h>
+
+#include "VLC/runtime.h"
+#include "VLC/loader.h"
+
+pthread_barrier_t barrier;
+
+typedef int (*is_t)();
+typedef int (*dc_t)(int argc, char * argv[]);
+typedef int (*bench_t)(int argc, char * argv[]);
+typedef int (*BFSGraph_t)(int argc, char * argv[]);
+typedef int (*kmeans_t)(int argc, char * argv[], pthread_barrier_t * barrier);
+typedef int (*hotspot3D_t)(int argc, char * argv[], pthread_barrier_t * barrier);
+typedef int (*euler3d_t)(int argc, char * argv[], pthread_barrier_t * barrier);
+
+auto start_time = std::chrono::system_clock::now();
+
+void register_functions() {
+   std::unordered_map<std::string, std::string> names{
+      {"is", "_Z2isv"},
+      {"dc", "_Z2dciPPc"},
+      {"bench", "_Z5benchiPPc"},
+      {"BFSGraph", "_Z8BFSGraphiPPc"},
+      {"kmeans", "kmeans"},
+      {"hotspot3D", "hotspot3D"},
+      {"euler3d", "_Z7euler3diPPcP17pthread_barrier_t"}};
+   VLC::Loader::register_func_names(names);
+}
+
+void launch_is(int vlc_id, const char* cpu_str) {
+    std::cout << "VLC " << vlc_id << " is created" << std::endl;
+    VLC::Context vlc(vlc_id, gettid());
+
+    // please change the number based on your system
+    vlc.avaliable_cpu(cpu_str);
+    VLC::register_vlc(&vlc);
+
+    VLC::Loader loader("is.so", vlc_id, false);
+
+    auto is = loader.load_func<is_t>("is");
+    auto t0 = std::chrono::system_clock::now();
+    is();
+
+    auto t1 = std::chrono::system_clock::now();
+    std::cout << "IS init time: " << ((std::chrono::duration<double>) (t0 - start_time)).count() << "s\n";
+    std::cout << "IS end time: " << ((std::chrono::duration<double>) (t1 - start_time)).count() << "s\n";
+}
+
+void launch_dc(int argc, char * argv[], int vlc_id, const char* cpu_str) {
+    std::cout << "VLC " << vlc_id << " is created" << std::endl;
+    VLC::Context vlc(vlc_id, gettid());
+
+    // please change the number based on your system
+    vlc.avaliable_cpu(cpu_str);
+    VLC::register_vlc(&vlc);
+
+    VLC::Loader loader("dc.so", vlc_id, false);
+
+    auto dc = loader.load_func<dc_t>("dc");
+
+    dc(argc, argv);
+
+    auto t1 = std::chrono::system_clock::now();
+    std::cout << "DS end time: " << ((std::chrono::duration<double>) (t1 - start_time)).count() << "s\n";
+}
+
+void launch_arraybench(int argc, char * argv[], int vlc_id, const char* cpu_str) {
+    std::cout << "VLC " << vlc_id << " is created" << std::endl;
+    VLC::Context vlc(vlc_id, gettid());
+
+    // please change the number based on your system
+    vlc.avaliable_cpu(cpu_str);
+    VLC::register_vlc(&vlc);
+
+    VLC::Loader loader("arraybench.so", vlc_id, false);
+
+    auto bench = loader.load_func<bench_t>("bench");
+
+    bench(argc, argv);
+
+    auto t1 = std::chrono::system_clock::now();
+    std::cout << "Arraybench end time: " << ((std::chrono::duration<double>) (t1 - start_time)).count() << "s\n";
+}
+
+void launch_bfs(int argc, char * argv[], int vlc_id, const char* cpu_str) {
+    std::cout << "VLC " << vlc_id << " is created" << std::endl;
+    VLC::Context vlc(vlc_id, gettid());
+
+    // please change the number based on your system
+    vlc.avaliable_cpu(cpu_str);
+    VLC::register_vlc(&vlc);
+
+    VLC::Loader loader("bfs.so", vlc_id, false);
+
+    auto BFSGraph = loader.load_func<BFSGraph_t>("BFSGraph");
+
+    BFSGraph(argc, argv);
+
+    auto t1 = std::chrono::system_clock::now();
+    std::cout << "BFSGraph end time: " << ((std::chrono::duration<double>) (t1 - start_time)).count() << "s\n";
+}
+
+void launch_kmeans(int argc, char * argv[], int vlc_id, const char* cpu_str) {
+    std::cout << "VLC " << vlc_id << " is created" << std::endl;
+    VLC::Context vlc(vlc_id, gettid());
+
+    // please change the number based on your system
+    vlc.avaliable_cpu(cpu_str);
+    VLC::register_vlc(&vlc);
+
+    VLC::Loader loader("kmeans.so", vlc_id, false);
+
+    auto kmeans = loader.load_func<kmeans_t>("kmeans");
+
+    kmeans(argc, argv, &barrier);
+
+    auto t1 = std::chrono::system_clock::now();
+    std::cout << "kmeans end time: " << ((std::chrono::duration<double>) (t1 - start_time)).count() << "s\n";
+}
+
+void launch_hotstop3D(int argc, char * argv[], int vlc_id, const char* cpu_str) {
+    std::cout << "VLC " << vlc_id << " is created" << std::endl;
+    VLC::Context vlc(vlc_id, gettid());
+
+    // please change the number based on your system
+    vlc.avaliable_cpu(cpu_str);
+    VLC::register_vlc(&vlc);
+
+    VLC::Loader loader("hotspot3D.so", vlc_id, false);
+
+    auto hotspot3D = loader.load_func<hotspot3D_t>("hotspot3D");
+
+    hotspot3D(argc, argv, &barrier);
+
+    auto t1 = std::chrono::system_clock::now();
+    std::cout << "hotspot3D end time: " << ((std::chrono::duration<double>) (t1 - start_time)).count() << "s\n";
+}
+
+void launch_cfd(int argc, char * argv[], int vlc_id, const char* cpu_str) {
+    std::cout << "VLC " << vlc_id << " is created" << std::endl;
+    VLC::Context vlc(vlc_id, gettid());
+
+    // please change the number based on your system
+    vlc.avaliable_cpu(cpu_str);
+    VLC::register_vlc(&vlc);
+
+    VLC::Loader loader("cfd.so", vlc_id, false);
+
+    auto euler3d = loader.load_func<euler3d_t>("euler3d");
+
+    euler3d(argc, argv, &barrier);
+
+    auto t1 = std::chrono::system_clock::now();
+    std::cout << "euler3d end time: " << ((std::chrono::duration<double>) (t1 - start_time)).count() << "s\n";
+}
+
+int main(int argc, char * argv[]) {
+    // initialize VLC environment
+    VLC::Runtime vlc;
+    vlc.initialize();
+
+    register_functions();
+
+    std::cout << "Begin!" << std::endl;
+
+    pthread_barrier_init(&barrier, NULL, 2);
+
+    int cfd_argc = 2;
+    char* cfd_argv[] = {argv[0], "benchmarks/cfd/data/fvcorr.domn.193K"};
+
+    // auto is = std::thread(launch_is, 1, "0-11");
+    // auto dc = std::thread(launch_dc, argc, argv, 1, "0-1");
+    // auto arraybench = std::thread(launch_arraybench, argc, argv, 1, "1-23");
+    // auto bfs = std::thread(launch_bfs, argc, argv, 1, "0-3");
+    // auto kmeans = std::thread(launch_kmeans, argc, argv, 1, "12-23");
+    auto hotstop3D = std::thread(launch_hotstop3D, argc, argv, 1, "0-11");
+    auto cfd = std::thread(launch_cfd, cfd_argc, cfd_argv, 2, "12-23");
+    
+    // is.join();
+    // dc.join();
+    // arraybench.join();
+    // kmeans.join();
+    hotstop3D.join();
+    cfd.join();
+
+    return 0;
+}

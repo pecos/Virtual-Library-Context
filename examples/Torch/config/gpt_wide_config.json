@@ -1,0 +1,14 @@
+[
+    {
+        "name": "gptlite",
+        "path": "benchmarks/GPTlite/libgptlite.so",
+        "entry_point_symbol": "_Z7gptliteiPPKcP17pthread_barrier_t",
+        "argv": []
+    },
+    {
+        "name": "widednn",
+        "path": "benchmarks/WideDNN/libwidednn.so",
+        "entry_point_symbol": "_Z7widednniPPKcP17pthread_barrier_t",
+        "argv": []
+    }
+]

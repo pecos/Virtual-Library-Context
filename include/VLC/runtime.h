@@ -28,9 +28,9 @@
 #include "VLC/communication.h"
 
 // this variable will has same address on Manager and Application processes
-static const char FORGED_CPU_FOLDER[] = "/home/yyan/forge-cpu/languedoc/half/cpu";
-static const char FORGED_CPU_ONLINE_FILE[] = "/home/yyan/forge-cpu/languedoc/half/cpu/online";
-static const char FORGED_CPU_INFO_FILE[] = "/home/yyan/forge-cpu/languedoc/half/cpuinfo";
+static const char FORGED_CPU_FOLDER[] = "/home/yyan/forge-cpu/zemaitis/full/cpu";
+static const char FORGED_CPU_ONLINE_FILE[] = "/home/yyan/forge-cpu/zemaitis/full/cpu/online";
+static const char FORGED_CPU_INFO_FILE[] = "/home/yyan/forge-cpu/zemaitis/full/cpuinfo";
 // static char FORGED_MEM_INFO_FILE_BUFFER[] = "                                                a";
 
 
@@ -254,7 +254,7 @@ private:
                     VLC_DIE("VLC: unable to retrive new child pid, %s", strerror(errno));
                 }
 
-                VLC_DEBUG("VLC: a new child process/thread is created, pid=%d", new_child);
+                VLC_DEBUG("VLC: a new child process/thread is created, pid=%d, parent=%d", new_child, child_waited);
 
                 // put the new child to the same VLC its parent in
                 VLC::Internal::pid_to_vlc_id[new_child] = VLC::Internal::pid_to_vlc_id[child_waited];
@@ -356,6 +356,7 @@ private:
             }
 
             virtual_cpu_sets[pid] = std::move(virtual_cpu_set);
+            VLC_DEBUG("VLC: affinity is created for VLC %d.", VLC::Internal::pid_to_vlc_id[pid]);
         }
         
         // copy the virtual cpu set into application's memory
@@ -391,10 +392,13 @@ private:
         // modify the pointer value to a pre defined str in the application space
         if (strcmp(filename_str, "/sys/devices/system/cpu") == 0) {
             *filename_ptr = (unsigned long long) FORGED_CPU_FOLDER;
+            VLC_DEBUG("VLC: open %s", FORGED_CPU_FOLDER);
         } else if (strcmp(filename_str, "/sys/devices/system/cpu/online") == 0) {
             *filename_ptr = (unsigned long long) FORGED_CPU_ONLINE_FILE;
+            VLC_DEBUG("VLC: open %s", FORGED_CPU_ONLINE_FILE);
         } else if (strcmp(filename_str, "/proc/cpuinfo") == 0) {
             *filename_ptr = (unsigned long long) FORGED_CPU_INFO_FILE;
+            VLC_DEBUG("VLC: open %s", FORGED_CPU_INFO_FILE);
         } 
         // else if (strcmp(filename_str, "/proc/meminfo") == 0) {
         //     resource.set_avaliable_mem(0, 8);

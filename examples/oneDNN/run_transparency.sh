@@ -3,7 +3,7 @@ cd $(dirname "$0")
 
 LIB_FILE="/usr/local/lib/libdnnl.so.3"
 SYMBOL_FILE="symbols.txt"
-NUM_VLC=1
+NUM_VLC=2
 LIB_NAME=$(basename $LIB_FILE)        
 
 # make clean

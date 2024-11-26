@@ -156,6 +156,7 @@
 
 #define  MAX_ITERATIONS      10
 #define  TEST_ARRAY_SIZE     5
+#define  REPEAT              1  
 
 
 /*************************************/
@@ -944,7 +945,7 @@ int main( int argc, char **argv )
                 break;
         };
 
-        
+    for (int repeat = 0; repeat < REPEAT; repeat++) { 
 
 /*  Printout initial NPB info */
     printf
@@ -1006,7 +1007,9 @@ int main( int argc, char **argv )
 /*  The final printout  */
     if( passed_verification != 5*MAX_ITERATIONS + 1 )
         passed_verification = 0;
-    c_print_results( "IS",
+
+    if (repeat + 1 == REPEAT)
+        c_print_results( "IS",
                      CLASS,
                      TOTAL_KS1,
                      TOTAL_KS2,
@@ -1044,6 +1047,8 @@ int main( int argc, char **argv )
        timecounter = timer_read(2);
        t_percent = timecounter/t_total * 100.;
        printf(" Sorting        : %8.3f (%5.2f%%)\n", timecounter, t_percent);
+    }
+
     }
 
     return 0;

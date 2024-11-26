@@ -15,6 +15,9 @@ cpu_cnn_training_f32: benchmarks/cpu_cnn_training_f32.c benchmarks/example_utils
 
 cpu_matmul_csr: benchmarks/cpu_matmul_csr.c benchmarks/example_utils.h
 	$(CXX) $(CFLAGS) -o $@ $< -ldnnl
+
+parallel: benchmarks/parallel.cpp benchmarks/example_utils.h
+	$(CXX) $(CFLAGS) -o $@ $< -ldnnl
 	
 cnn_inference_f32_transparent: benchmarks/cnn_inference_f32_transparent.cpp benchmarks/example_utils.h ../../include/VLC/runtime.h
 	$(CXX) $(CFLAGS) -o $@ $< -ldnnl
@@ -23,6 +26,9 @@ cpu_cnn_training_f32_transparent: benchmarks/cpu_cnn_training_f32_transparent.cp
 	$(CXX) $(CFLAGS) -o $@ $< -ldnnl
 
 cpu_matmul_csr_transparent: benchmarks/cpu_matmul_csr_transparent.cpp benchmarks/example_utils.h ../../include/VLC/runtime.h
+	$(CXX) $(CFLAGS) -o $@ $< -ldnnl
+
+parallel_vlc: benchmarks/parallel_vlc.cpp benchmarks/example_utils.h ../../include/VLC/runtime.h
 	$(CXX) $(CFLAGS) -o $@ $< -ldnnl
 
 clean:

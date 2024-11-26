@@ -1,3 +1,4 @@
 cblas_dgemm
 dpotrf_
 dgesv_
+openblas_get_num_procs

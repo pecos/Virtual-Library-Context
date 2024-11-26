@@ -7,40 +7,39 @@
 #include <stdio.h>
 #include <random>
 #include <string>
+#include <cstring>
 
 #include <cblas.h>
 #include <lapack.h>
 
-void F_GEMM(double* const& x, double* const& y, double* const& z, const int& n, const int& nrep) {
+void F_GEMM(double* const& x, double* const& y, double* const& z, const int& n, const int& nrep, pthread_barrier_t* barrier) {
     double t = 0.0;
     int p = 0;
-    auto t0 = std::chrono::system_clock::now();
-    auto t1 = std::chrono::system_clock::now();
-    std::random_device device;
-    std::mt19937 generator(device());
+    // std::random_device device;
+    std::mt19937 generator(101);
     std::normal_distribution<double> normal(0.0, 1.0);
+
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            p = i * n + j;
+            y[p] = normal(generator);
+            z[p] = normal(generator);
+        }
+    }
+
+    pthread_barrier_wait(barrier);
+    auto start_time = std::chrono::system_clock::now();
     for (int i = 0; i < nrep; i++)
     {
-        for (int i = 0; i < n; i++) {
-            for (int j = 0; j < n; j++) {
-                p = i * n + j;
-                y[p] = normal(generator);
-                z[p] = normal(generator);
-            }
-        }
+        memset(x, 0.0,  sizeof(double) * n * n);
 
-        t0 = std::chrono::system_clock::now();
         cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, n, n, n, 1.0, y, n, z, n, 0.0, x, n);
-        t1 = std::chrono::system_clock::now();
-
-        std::chrono::duration<double> elapsed = t1 - t0;
-        std::cout << "DGEMM elapsed time: " << elapsed.count() << "s\n";
-        t += static_cast<double>(elapsed.count());
     }
-    std::cout << "DGEMM average time: " << t / nrep << "s\n";
+    auto end_time = std::chrono::system_clock::now();
+    std::cout << "gemm runtime: " << ((std::chrono::duration<double>) (end_time - start_time)).count() << "s\n";
 }
 
-int main(int argc, char** argv)
+int gemm(int argc, char** argv, pthread_barrier_t* barrier)
 {
     if (argc != 3) {
         std::cout << "No. of input: " << argc << std::endl;
@@ -69,9 +68,8 @@ int main(int argc, char** argv)
         }
     }   
 
-
     // Perform Martix Multiplication
-    F_GEMM(x, y, z, n, nrep);
+    F_GEMM(x, y, z, n, nrep, barrier);
 
     delete[] x;
     delete[] y;

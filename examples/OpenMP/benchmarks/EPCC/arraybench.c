@@ -43,6 +43,8 @@ double atest[IDA];
 
 #pragma omp threadprivate (btest)
 
+#define REPEAT 10
+
 int main(int argc, char **argv) {
 
     init(argc, argv);
@@ -50,31 +52,33 @@ int main(int argc, char **argv) {
     char testName[32];
     extern char type[120];
 
-    /* GENERATE REFERENCE TIME */
-    reference("reference time 1", &refer);
+    for (int repeat = 0; repeat < REPEAT; repeat++) {
+        /* GENERATE REFERENCE TIME */
+        reference("reference time 1", &refer);
 
-    /* TEST  PRIVATE */
-    if((strcmp("PRIVATE",type)==0)||(strcmp("ALL",type)==0)){
-      sprintf(testName, "PRIVATE %d", IDA);
-      benchmark(testName, &testprivnew);
-    }
+        /* TEST  PRIVATE */
+        if((strcmp("PRIVATE",type)==0)||(strcmp("ALL",type)==0)){
+        sprintf(testName, "PRIVATE %d", IDA);
+        benchmark(testName, &testprivnew);
+        }
 
-    /* TEST  FIRSTPRIVATE */
-    if((strcmp("FIRSTPRIVATE",type)==0)||(strcmp("ALL",type)==0)){
-      sprintf(testName, "FIRSTPRIVATE %d", IDA);
-      benchmark(testName, &testfirstprivnew);
-    }
+        /* TEST  FIRSTPRIVATE */
+        if((strcmp("FIRSTPRIVATE",type)==0)||(strcmp("ALL",type)==0)){
+        sprintf(testName, "FIRSTPRIVATE %d", IDA);
+        benchmark(testName, &testfirstprivnew);
+        }
 
-    /* TEST  COPYPRIVATE */
-    if((strcmp("COPYPRIVATE",type)==0)||(strcmp("ALL",type)==0)){
-      sprintf(testName, "COPYPRIVATE %d", IDA);
-      benchmark(testName, &testcopyprivnew);
-    }
+        /* TEST  COPYPRIVATE */
+        if((strcmp("COPYPRIVATE",type)==0)||(strcmp("ALL",type)==0)){
+        sprintf(testName, "COPYPRIVATE %d", IDA);
+        benchmark(testName, &testcopyprivnew);
+        }
 
-    /* TEST  THREADPRIVATE - COPYIN */
-    if((strcmp("COPYIN",type)==0)||(strcmp("ALL",type)==0)){
-      sprintf(testName, "COPYIN %d", IDA);
-      benchmark(testName, &testthrprivnew);
+        /* TEST  THREADPRIVATE - COPYIN */
+        if((strcmp("COPYIN",type)==0)||(strcmp("ALL",type)==0)){
+        sprintf(testName, "COPYIN %d", IDA);
+        benchmark(testName, &testthrprivnew);
+        }
     }
 
     finalise();

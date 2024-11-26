@@ -13,7 +13,7 @@ typedef int (*matvec_t)(int argc, char *argv[]);
 
 void register_functions() {
     std::unordered_map<std::string, std::string> names{
-        {"matvec", "_Z11kokkos_initi"}};
+        {"matvec", "_Z6matveciPPc"}};
     VLC::Loader::register_func_names(names);
 }
 
@@ -21,8 +21,10 @@ void launch(int vlc_id, int argc, char *argv[]) {
     VLC::Context vlc(vlc_id, gettid());
     vlc.avaliable_cpu("0-23"); // please change the number based on your system
     VLC::register_vlc(&vlc);
-    VLC::Loader loader("libkokkos_compute.so", vlc_id, false);
+    VLC::Loader loader("libmatvec.so", vlc_id, false);
     auto matvec = loader.load_func<matvec_t>("matvec");
+    vlc_init_end = std::chrono::high_resolution_clock::now();
+    std::cout << "PERF: VLC init finished in " << std::chrono::duration_cast<std::chrono::milliseconds>(vlc_init_end - vlc_init_start).count() << "ms" << std::endl;
 
     matvec(argc, argv);
 }
