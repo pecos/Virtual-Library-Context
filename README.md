@@ -126,7 +126,10 @@ int main() {
 
 This mode requires manually loading all function symbols of the libraries used in the application code. This provides better compatibility than transparent mode. And there is no need to generate a shim.
 
-User need to define the function pointer types of libraries they want to use at the top of the application code. And then put a mapping of the function name to its mangled symbols names in `register_functions()`.
+User need to define the function pointer types of libraries they want to use at the top of the application code. And then put a mapping of the function name to its mangled symbols names in `register_functions()`. To find the mangled symbols in your object, try
+```
+> objdump -T <hello.so> | grep "hello"
+``` 
 
 When loading libraries into VLC, user needs to get the function pointers manually from VLC by calling `loader.load_func<function_type>("function_name");`, and all libraries API used in the application need to be replaced with these functions pointers. If an API in the libraries loaded into VLC is not used, there is no need to load that unused function pointer.
 
@@ -188,6 +191,7 @@ How to generate a shim for VLC Service could be found by reference [gen_cudart_s
 Those libraries are dlmopen-incompatible and require the use of VLC Service as a workaround. There may exist more libraries and the list will be updated once we find them.
 - CUDA
 - Pthread (only for glibc < 2.34)
+- OpenCL
 
 ## Known Issues
 
