@@ -2,7 +2,7 @@ CXX=g++
 NO_DEBUG=-DNDEBUG
 HEADER_GALOIS_DIR=lib/Galois/install/include
 LIBGALOIS_DIR=lib/Galois/build/libgalois
-CFLAGS=-I./include -I../../include -I$(HEADER_GALOIS_DIR) -L$(LIBGALOIS_DIR) -std=c++17 -Wall $(NO_DEBUG)
+CFLAGS=-I./include -I./src/graph_analysis -I../../include -I$(HEADER_GALOIS_DIR) -L$(LIBGALOIS_DIR) -std=c++17 -Wall $(NO_DEBUG)
 
 libtestgalois.so: src/testgalois.cpp
 	$(CXX) $(CFLAGS) -shared -o $@ $< -lgalois_shmem -pthread -lnuma -fPIC
@@ -34,5 +34,17 @@ initialize_time_vlc: src/initialize_time/vlc.cpp  libbfsgalois.so ../../include/
 initialize_time_base: src/initialize_time/base.cpp  libbfsgalois.so
 	$(CXX) $(CFLAGS) -o $@ $< -L./ -lgalois_shmem -lbfsgalois
 
+graph_analysis: src/graph_analysis/GraphAnalysis.cpp src/graph_analysis/bfs.cpp src/graph_analysis/PageRank.cpp
+	$(CXX) $(CFLAGS) -o $@ $^ -lgalois_shmem
+
+libbfs.so: src/graph_analysis/bfs.cpp
+	$(CXX) $(CFLAGS) -shared -o $@ $< -lgalois_shmem -fPIC
+
+libpagerank.so: src/graph_analysis/PageRank.cpp
+	$(CXX) $(CFLAGS) -shared -o $@ $< -lgalois_shmem -fPIC
+
+graph_analysis_vlc: src/graph_analysis/GraphAnalysis_vlc.cpp libbfs.so libpagerank.so
+	$(CXX) $(CFLAGS) -o $@ $<
+
 clean:
-	rm -rf bfs_launcher_vlc_transparency initialize_time_base initialize_time_vlc bfs_launcher_novlc bfs_launcher_vlc launcher_single launcher_novlc launcher_vlc *.so
+	rm -rf graph_analysis bfs_launcher_vlc_transparency initialize_time_base initialize_time_vlc bfs_launcher_novlc bfs_launcher_vlc launcher_single launcher_novlc launcher_vlc *.so

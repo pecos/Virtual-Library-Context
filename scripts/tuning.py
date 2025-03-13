@@ -3,13 +3,13 @@ import re
 import statistics
 
 CMD = "./parallel_vlc"
-CONFIG = "../dnn_wide_config.json"
+CONFIG = "../config/dnn_wide_config.json"
 NUM_CPU = 24
 STEP = 2
 
 def gen_search_space():
     search_space = []
-    for i in range(9, NUM_CPU, STEP):
+    for i in range(1, NUM_CPU, STEP):
         for j in range(1, NUM_CPU, STEP):
             search_space.append((f"0-{i}", f"{NUM_CPU - 1 - j}-{NUM_CPU - 1}"))
     return search_space  

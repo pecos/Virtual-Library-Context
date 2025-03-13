@@ -127,7 +127,7 @@ void monitor_sig_hanlder(int sig) {
     VLC_SHARED_MEM.read((void *) &vlc_config);
 
     // save the vlc config 
-    VLC::Internal::pid_to_vlc_id[vlc_config.thread_id] = vlc_config.id;
+    pid_to_vlc_id[vlc_config.thread_id] = vlc_config.id;
 
     // parse cpu str
     std::string cpu_str(vlc_config.cpu_str);
@@ -164,6 +164,10 @@ void monitor_sig_hanlder(int sig) {
 
         VLC::Internal::vlc_id_to_core_map[vlc_config.id] = std::move(core_map);
     }
+
+    // enforce affinity
+    create_virtual_affinity(vlc_config.thread_id);
+    enfore_virtual_affinity(vlc_config.thread_id);
 
     // send SIGUSR1 signal back to application
     // so it knows the content is already processed by VLC monitor

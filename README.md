@@ -201,4 +201,4 @@ Issues to be fixed.
 - Transparent Mode may not work with VLC Service
 - Dynamic data symbols are not supported in Transparent Mode yet
 - The max number of VLCs is limited by the number of linker namespaces (less than 16)
-- Compiling with compiler optimization enabled may break transparent mode for certain libraries (e.g. oneDNN)
+- Compiling with compiler optimization enabled may break transparent mode for certain libraries (e.g. oneDNN, LibTorch)

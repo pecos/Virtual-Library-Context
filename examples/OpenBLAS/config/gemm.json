@@ -1,0 +1,8 @@
+[
+    {
+        "name": "gemm",
+        "path": "gemm.so",
+        "entry_point_symbol": "_Z4gemmiPPcP17pthread_barrier_t",
+        "argv": ["10000", "4"]
+    }
+]

@@ -14,6 +14,7 @@ def count(x):
 df = pd.read_csv(CSV_FILE)
 
 df['max_value'] = df[['value1', 'value2']].max(axis=1)
+print(df['max_value'].sum())
 df['x_count'] = df['x'].apply(count)
 df['y_count'] = df['y'].apply(count)
 

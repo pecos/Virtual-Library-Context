@@ -18,6 +18,33 @@ namespace Internal {
 
 std::unordered_map<pid_t, int> pid_to_vlc_id;
 std::unordered_map<int, std::vector<int>> vlc_id_to_core_map;
+std::unordered_map<pid_t, cpu_set_t> virtual_cpu_sets;
+cpu_set_t system_cpu_set;
+
+/**
+ * Create a virtualized affinity if not created before
+ */
+void create_virtual_affinity(pid_t pid) {
+    if (virtual_cpu_sets.find(pid) == virtual_cpu_sets.end()) {
+        cpu_set_t virtual_cpu_set = system_cpu_set;
+
+        // find the core_map from info we saved from register_vlc()
+        std::vector<int> core_map = vlc_id_to_core_map[pid_to_vlc_id[pid]];
+
+        CPU_ZERO(&virtual_cpu_set);
+        for (auto i: core_map) {
+            CPU_SET(i, &virtual_cpu_set);
+        }
+
+        virtual_cpu_sets[pid] = std::move(virtual_cpu_set);
+    }
+}
+
+void enfore_virtual_affinity(pid_t pid) {
+    if (sched_setaffinity(pid, sizeof(virtual_cpu_sets[pid]), &virtual_cpu_sets[pid]) == -1) {
+        VLC_DIE("VLC: unable to set cpu set, %s", strerror(errno));
+    }
+}
 
 class Resource {
 public:

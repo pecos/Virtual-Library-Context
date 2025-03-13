@@ -1,0 +1,8 @@
+[
+    {
+        "name": "linear_equation",
+        "path": "linear_equation.so",
+        "entry_point_symbol": "_Z15linear_equationiPPcP17pthread_barrier_t",
+        "argv": ["10000", "4"]
+    }
+]

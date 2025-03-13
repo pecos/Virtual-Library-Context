@@ -33,6 +33,10 @@ static const char FORGED_CPU_ONLINE_FILE[] = "/home/yyan/forge-cpu/zemaitis/full
 static const char FORGED_CPU_INFO_FILE[] = "/home/yyan/forge-cpu/zemaitis/full/cpuinfo";
 // static char FORGED_MEM_INFO_FILE_BUFFER[] = "                                                a";
 
+// static const char FORGED_CPU_FOLDER_1[] = "/home/yyan/vlc/zemaitis/4/cpu";
+// static const char FORGED_CPU_INFO_FILE_1[] = "/home/yyan/vlc/zemaitis/4/cpuinfo";
+// static const char FORGED_CPU_FOLDER_2[] = "/home/yyan/vlc/zemaitis/full/cpu";
+// static const char FORGED_CPU_INFO_FILE_2[] = "/home/yyan/vlc/zemaitis/full/cpuinfo";
 
 namespace VLC {
 
@@ -114,8 +118,6 @@ private:
 
     // VLC::Internal::Resource resource;
 
-    cpu_set_t system_cpu_set;
-    std::unordered_map<pid_t, cpu_set_t> virtual_cpu_sets;
     pid_t application_pid = 0;
     std::unordered_map<pid_t, ChildState> application_child_states;  // map of child to states of the application process (including itself)
     int forge_sched_getaffinity_count = 0;
@@ -170,7 +172,7 @@ private:
     */
     void determine_resouces() {
         // cpu set
-        if (sched_getaffinity(0, sizeof(cpu_set_t), &system_cpu_set) == -1) {
+        if (sched_getaffinity(0, sizeof(cpu_set_t), &Internal::system_cpu_set) == -1) {
             VLC_DIE("VLC: unable to determine cpu set, %s", strerror(errno));
         }
     }
@@ -239,11 +241,6 @@ private:
                 // check https://blog.rchapman.org/posts/Linux_System_Call_Table_for_x86_64/
                 if (syscall == SYS_sched_getaffinity) {  // capture sched_getaffinity()
                     forge_sched_getaffinity(child_waited, regs.rsi, regs.rdx);
-
-                    // enforce the affinity we virtulized
-                    if (sched_setaffinity(child_waited, regs.rsi, &virtual_cpu_sets[child_waited]) == -1) {
-                        VLC_DIE("VLC: unable to set cpu set, %s", strerror(errno));
-                    }
                 }
             } else if ((status >> 8 == (SIGTRAP | (PTRACE_EVENT_CLONE << 8))) ||
                 (status >> 8 == (SIGTRAP | (PTRACE_EVENT_FORK << 8)))) {
@@ -266,10 +263,16 @@ private:
                 } else {
                     // if the child stop event is already caputured
                     assert(application_child_states[new_child] == ChildState::NEW_STOPPED && "Child state invalid");
-                
+                    
+                    // set affinity on new child if it is on a VLC
+                    if (VLC::Internal::pid_to_vlc_id[new_child] != 0) {
+                        Internal::create_virtual_affinity(new_child);
+                        Internal::enfore_virtual_affinity(new_child);
+                    }
+                    
                     // trace and let child continue
                     if (ptrace(PTRACE_SETOPTIONS, new_child, NULL, PTRACE_O_TRACEFORK | PTRACE_O_TRACECLONE | PTRACE_O_TRACESECCOMP | PTRACE_O_EXITKILL) == -1) {
-                        
+                        VLC_DIE("VLC: unable to config tracer on child");
                     }
 
                     VLC_DEBUG("VLC: child is traced and resumed, pid=%d", new_child);
@@ -283,6 +286,12 @@ private:
                 // a child is stopped after created, and fork event already recived
                 assert(application_child_states[child_waited] == ChildState::NEW_FORKED && "Child state is invalid");
                 
+                // set affinity on new child if it is on a VLC
+                if (VLC::Internal::pid_to_vlc_id[child_waited] != 0) {
+                    Internal::create_virtual_affinity(child_waited);
+                    Internal::enfore_virtual_affinity(child_waited);
+                }
+
                 // trace and let child continue
                 if (ptrace(PTRACE_SETOPTIONS, child_waited, NULL, PTRACE_O_TRACEFORK | PTRACE_O_TRACECLONE | PTRACE_O_TRACESECCOMP | PTRACE_O_EXITKILL) == -1) {
                     VLC_DIE("VLC: unable to config tracer");
@@ -344,24 +353,11 @@ private:
     */
     void forge_sched_getaffinity(pid_t pid, unsigned int len, unsigned long long user_mask_ptr) {
         // make a virtual cpu affinity
-        if (virtual_cpu_sets.find(pid) == virtual_cpu_sets.end()) {
-            cpu_set_t virtual_cpu_set = system_cpu_set;
-
-            // find the core_map from info we saved from register_vlc()
-            std::vector<int> core_map = VLC::Internal::vlc_id_to_core_map[VLC::Internal::pid_to_vlc_id[pid]];
-
-            CPU_ZERO(&virtual_cpu_set);
-            for (auto i: core_map) {
-                CPU_SET(i, &virtual_cpu_set);
-            }
-
-            virtual_cpu_sets[pid] = std::move(virtual_cpu_set);
-            VLC_DEBUG("VLC: affinity is created for VLC %d.", VLC::Internal::pid_to_vlc_id[pid]);
-        }
+        Internal::create_virtual_affinity(pid);
         
         // copy the virtual cpu set into application's memory
         iovec local_iov[1];
-        local_iov[0].iov_base = &(virtual_cpu_sets[pid]);
+        local_iov[0].iov_base = &( Internal::virtual_cpu_sets[pid]);
         local_iov[0].iov_len = len;
 
         iovec remote_iov[1];

@@ -10,10 +10,13 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNDEBUG")
 add_subdirectory(benchmarks/DNN)
 add_subdirectory(benchmarks/WideDNN)
 add_subdirectory(benchmarks/GPTlite)
-
+add_subdirectory(src/initialize_time)
 
 add_executable(parallel_vlc benchmarks/parallel_vlc.cpp)
 target_include_directories(parallel_vlc PRIVATE ../../include)
 
 add_executable(parallel benchmarks/parallel.cpp)
 target_include_directories(parallel PRIVATE ../../include)
+
+add_executable(vlc src/initialize_time/vlc.cpp)
+target_include_directories(vlc PRIVATE ../../include)

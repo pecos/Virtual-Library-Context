@@ -15,6 +15,19 @@ typedef int (*run_t)(int argc, char * argv[], pthread_barrier_t * barrier);
 
 auto start_time = std::chrono::system_clock::now();
 
+/**
+ * Launches a Virtual Library Context (VLC) with the specified configuration.
+ *
+ * This function initializes a VLC environment, assigns available CPU cores,
+ * and loads the specified library for execution within the VLC.
+ *
+ * @param config Pointer to a VLC::TuningConfig object containing the configuration
+ *               details such as the library path, entry point symbol, and arguments.
+ * @param vlc_id An integer representing the VLC identifier.
+ * @param cpu_str A string specifying the CPU cores to be allocated for this VLC.
+ *
+ * The function outputs the creation and end time of the VLC execution.
+ */
 void launch_vlc(VLC::TuningConfig * config, int vlc_id, const char* cpu_str) {
     std::cout << "VLC " << vlc_id << "(" << config->name << ") is created." << std::endl;
     VLC::Context vlc(vlc_id, gettid());

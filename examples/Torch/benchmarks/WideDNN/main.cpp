@@ -62,7 +62,7 @@ int widednn(int argc, const char* argv[], pthread_barrier_t* barrier) {
       pthread_barrier_wait(barrier);
       auto start_time = std::chrono::system_clock::now();
       benchmark_train<BenchmarkModel>(model, x, label, model_name);
-      benchmark_inference<BenchmarkModel>(model, x, model_name);
+      // benchmark_inference<BenchmarkModel>(model, x, model_name);
       auto end_time = std::chrono::system_clock::now();
       std::cout << "wide dnn runtime: " << ((std::chrono::duration<double>) (end_time - start_time)).count() << "s\n";
     }

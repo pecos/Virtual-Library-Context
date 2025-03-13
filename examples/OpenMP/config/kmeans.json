@@ -1,0 +1,15 @@
+[
+    {
+        "name": "kmeans",
+        "path": "kmeans.so",
+        "entry_point_symbol": "kmeans",
+        "argv": ["-n", 
+                "24", 
+                "-i", 
+                "benchmarks/kmeans/data/819200.txt",
+                "-t",
+                "0.0000001",
+                "-l",
+                "10"]
+    }
+]
