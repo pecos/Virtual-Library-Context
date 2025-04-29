@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 CSV_FILE = "heatmap.csv"
+SHOW_SPEEDUP = True
 
 def count(x):
     x_value = x.split('-')
@@ -17,6 +18,10 @@ df['max_value'] = df[['value1', 'value2']].max(axis=1)
 print(df['max_value'].sum())
 df['x_count'] = df['x'].apply(count)
 df['y_count'] = df['y'].apply(count)
+
+if SHOW_SPEEDUP:
+    min_value = df['max_value'].min()
+    df['max_value'] = df['max_value'] / min_value
 
 # Pivot the DataFrame to create a matrix suitable for heatmap plotting
 heatmap_data = df.pivot(index='y_count', columns='x_count', values='max_value')
@@ -39,9 +44,9 @@ ax.add_patch(plt.Rectangle((min_col, min_row), 1, 1, fill=False, edgecolor='gree
 # ax.add_patch(plt.Rectangle((len(heatmap_data) - 1, len(heatmap_data) - 1), 1, 1, fill=False, edgecolor='orange', lw=4))
 
 # Add titles and labels
-plt.title('Heatmap of Resouce Parition between two DNN tasks', fontsize=16)
-plt.xlabel('Number of CPU cores assigned to Deep DNN task', fontsize=14)
-plt.ylabel('Number of CPU cores assigned to Wide DNN task', fontsize=14)
+# plt.title('Heatmap of Resouce Parition between two DNN tasks', fontsize=16)
+plt.xlabel('Number of CPU cores assigned to task with seq_len=256', fontsize=14)
+plt.ylabel('Number of CPU cores assigned to task with seq_len=128', fontsize=14)
 
 # Save the heatmap as an image file or display it
 plt.savefig('heatmap.pdf', format="pdf", bbox_inches='tight')  # To save the heatmap as an image file

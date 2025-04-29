@@ -5,6 +5,13 @@
 #define _GNU_SOURCE
 #endif
 
+#ifdef __ARM_ARCH
+#include <asm-generic/unistd.h>
+#else
+#include <sys/syscall.h>
+#endif
+
+#include <elf.h>
 #include <thread>
 #include <cstdlib>
 #include <iostream>
@@ -15,10 +22,8 @@
 #include <sys/user.h>
 #include <sys/uio.h>
 #include <sys/prctl.h>
-#include <sys/syscall.h>
 #include <linux/seccomp.h>
 #include <linux/filter.h>
-#include <seccomp.h>
 #include <sched.h>
 #include <unordered_map>
 #include <cassert>
@@ -139,9 +144,9 @@ private:
             // if it is open(), return TRACE
             // BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, SYS_open, 3, 0),
             // if it is openat(), return TRACE
-            BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, SYS_openat, 2, 0),
+            BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, __NR_openat, 2, 0),
             // if it is sched_getaffinity(), return TRACE
-            BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, SYS_sched_getaffinity, 1, 0),
+            BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, __NR_sched_getaffinity, 1, 0),
             // else, continue the syscall without tracing
             BPF_STMT(BPF_RET + BPF_K, SECCOMP_RET_ALLOW),
             BPF_STMT(BPF_RET + BPF_K, SECCOMP_RET_TRACE),
@@ -208,16 +213,37 @@ private:
                 /*** Phase 1: entering syscall **/
 
                 // retrive syscall arguments
+                #ifdef __ARM_ARCH
+                user_regs_struct regs;
+                iovec iov = {
+                    .iov_base = &regs,
+                    .iov_len = sizeof(user_regs_struct),
+                };
+                if (ptrace(PTRACE_GETREGSET, child_waited, NT_PRSTATUS, &iov) == -1) {
+                    VLC_DIE("VLC: unable to intercept syscall, %s", strerror(errno));
+                }
+                long syscall = regs.regs[8];  // syscall number is in x8 in arrch64
+
+                if (syscall == __NR_openat) {  // capture openat()
+                    // forge_openat(child_waited, regs.regs + 1);
+                    // if (ptrace(PTRACE_SETREGSET, child_waited, NT_PRSTATUS, &iov) == -1) {
+                    //     VLC_DIE("VLC: unable to modify syscall, %s", strerror(errno));
+                    // }
+                }
+                #else
                 user_regs_struct regs;
                 if (ptrace(PTRACE_GETREGS, child_waited, NULL, &regs) == -1) {
                     VLC_DIE("VLC: unable to intercept syscall, %s", strerror(errno));
                 }
                 long syscall = regs.orig_rax;
-     
-                if (syscall == SYS_openat) {  // capture openat()
-                    forge_openat(child_waited, &regs.rsi);
-                    ptrace(PTRACE_SETREGS, child_waited, NULL, &regs);
+
+                if (syscall == __NR_openat) {  // capture openat()
+                    // forge_openat(child_waited, &regs.rsi);
+                    // if (ptrace(PTRACE_SETREGS, child_waited, NULL, &regs) == -1) {
+                    //     VLC_DIE("VLC: unable to modify syscall, %s", strerror(errno));
+                    // }
                 }
+                #endif
 
                 /*** Phase 2: waiting syscall execution **/
 
@@ -230,17 +256,29 @@ private:
                 }
 
                 /*** Phase 3: leaving syscall **/
-                
+                //TODO: optimize this part to avoid check syscall twice
+                #ifdef __ARM_ARCH
+                // retrive syscall arguments
+                if (ptrace(PTRACE_GETREGSET, child_waited, NT_PRSTATUS, &iov) == -1) {
+                    VLC_DIE("VLC: unable to intercept syscall, %s", strerror(errno));
+                }
+                assert(regs.regs[8] == syscall);  // orig_rax should not change
+                #else
                 // retrive syscall arguments
                 if (ptrace(PTRACE_GETREGS, child_waited, NULL, &regs) == -1) {
                     VLC_DIE("VLC: unable to intercept syscall, %s", strerror(errno));
                 }
                 assert(regs.orig_rax == syscall);  // orig_rax should not change
+                #endif
 
-                // for x86 ABI
-                // check https://blog.rchapman.org/posts/Linux_System_Call_Table_for_x86_64/
-                if (syscall == SYS_sched_getaffinity) {  // capture sched_getaffinity()
+                // for x86/Arm64 ABI
+                // check https://chromium.googlesource.com/chromiumos/docs/+/master/constants/syscalls.md#calling-conventions
+                if (syscall == __NR_sched_getaffinity) {  // capture sched_getaffinity()
+                    #ifdef __ARM_ARCH
+                    forge_sched_getaffinity(child_waited, regs.regs[1], regs.regs[2]);
+                    #else
                     forge_sched_getaffinity(child_waited, regs.rsi, regs.rdx);
+                    #endif
                 }
             } else if ((status >> 8 == (SIGTRAP | (PTRACE_EVENT_CLONE << 8))) ||
                 (status >> 8 == (SIGTRAP | (PTRACE_EVENT_FORK << 8)))) {

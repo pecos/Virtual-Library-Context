@@ -1,13 +1,9 @@
-OPENBLAS_VERSION=openblas-pthread#openblas-openmp
-OPENBLAS64_VERSION=openblas64-pthread#openblas64-openmp
-OPENBLAS64_INCDIR=-I/usr/include/x86_64-linux-gnu/$(OPENBLAS64_VERSION)/
-OPENBLAS64_LIBDIR=-L/usr/lib/x86_64-linux-gnu/$(OPENBLAS64_VERSION)/
-OPENBLAS_INCDIR=-I/usr/include/x86_64-linux-gnu/$(OPENBLAS_VERSION)/
-OPENBLAS_LIBDIR=-L/usr/lib/x86_64-linux-gnu/$(OPENBLAS_VERSION)/
+OPENBLAS_INCDIR=-I/home1/08487/yyineng/miniconda3/envs/vlc/include
+OPENBLAS_LIBDIR=-L/home1/08487/yyineng/miniconda3/envs/vlc/lib
 
 CXX=g++
 NO_DEBUG=-DNDEBUG -O2 # -g
-CFLAGS=-I./include -I../../include $(OPENBLAS_INCDIR) $(OPENBLAS_LIBDIR) $(OPENBLAS64_INCDIR) $(OPENBLAS64_LIBDIR) -std=c++17 -Wall $(NO_DEBUG)
+CFLAGS=-I./include -I../../include $(OPENBLAS_INCDIR) $(OPENBLAS_LIBDIR) -std=c++17 -Wall $(NO_DEBUG)
 
 libmatmul.so: src/matmul.cpp
 	$(CXX) $(CFLAGS) -shared -o $@ $< -lopenblas64 -fPIC

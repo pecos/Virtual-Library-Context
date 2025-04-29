@@ -1,0 +1,14 @@
+[
+    {
+        "name": "transformer",
+        "path": "benchmarks/Transformer/libtransformer.so",
+        "entry_point_symbol": "_Z11transformeriPPKcP17pthread_barrier_t",
+        "argv": ["0.01", "0.1", "64", "8", "256"]
+    },
+    {
+        "name": "transformer",
+        "path": "benchmarks/Transformer/libtransformer.so",
+        "entry_point_symbol": "_Z11transformeriPPKcP17pthread_barrier_t",
+        "argv": ["0.01", "0.1", "64", "8", "128"]
+    }
+]

@@ -1,0 +1,27 @@
+[
+    {
+        "name": "euler3d",
+        "path": "cfd.so",
+        "entry_point_symbol": "_Z7euler3diPPcP17pthread_barrier_t",
+        "argv": ["benchmarks/cfd/data/fvcorr.domn.193K"]
+    },
+    {
+        "name": "kmeans",
+        "path": "kmeans.so",
+        "entry_point_symbol": "kmeans",
+        "argv": ["-n", 
+                "24", 
+                "-i", 
+                "benchmarks/kmeans/data/819200.txt",
+                "-t",
+                "0.0000001",
+                "-l",
+                "10"]
+    },
+    {
+        "name": "dnn",
+        "path": "../Torch/build/benchmarks/DNN/libdnn.so",
+        "entry_point_symbol": "_Z3dnniPPKcP17pthread_barrier_t",
+        "argv": []
+    }
+]

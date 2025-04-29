@@ -3,9 +3,10 @@ import re
 import statistics
 
 CMD = "./parallel_vlc"
-CONFIG = "../config/dnn_wide_config.json"
+CONFIG = "../config/transformer.json"
 NUM_CPU = 24
 STEP = 2
+REPEAT = 1
 
 def gen_search_space():
     search_space = []
@@ -25,8 +26,8 @@ def run_command(cpu1, cpu2):
     # Extract "Time" using regex
     # task1_time = re.search(r"Time:\s*([0-9.]+)\s*\(s\)", output)
     # task2_time = re.search(r"Compute time:\s*([0-9.]+)", output)
-    task1_time = re.search(r"\ndnn runtime:\s*([0-9.]+)s", output)
-    task2_time = re.search(r"\nwide dnn runtime:\s*([0-9.]+)s", output)
+    task1_time = re.search(r"\nVLC 1\(transformer\) end time:\s*([0-9.]+)s", output)
+    task2_time = re.search(r"\nVLC 2\(transformer\) end time:\s*([0-9.]+)s", output)
     
     if task1_time and task2_time:
         t1 = float(task1_time.group(1))
@@ -42,12 +43,12 @@ def main():
     # Repeat 3 times
     for cpu1, cpu2 in search_space:
         times = []
-        max_retries = 3  # retry at most 3 times if enconter parsing issues
+        max_retries = 2  # retry at most 3 times if enconter parsing issues
         attempt = 0
 
         while attempt < max_retries:
             try:
-                for _ in range(3):
+                for _ in range(REPEAT):
                     t1, t2 = run_command(cpu1, cpu2)
                     times.append((t1,t2))
                 break  # Exit loop if successful
