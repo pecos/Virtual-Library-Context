@@ -41,7 +41,7 @@ typedef double (*heat3d_phase2_t)(void *sys);
 
 pthread_barrier_t barrier;
 
-int NUM_DEVICE = 1; // only support at most two GPUs
+int NUM_DEVICE = 2; // only support at most two GPUs
 
 // shared data
 std::vector<void *> heat3d_sys(NUM_DEVICE, NULL);
@@ -50,7 +50,7 @@ std::vector<double> local_T_ave(NUM_DEVICE, 0);
 void register_functions() {
     std::unordered_map<std::string, std::string> names{
         {"kokkos_initialize", "_Z17kokkos_initializei"},
-        {"kokkos_finalize", "_ZN6Kokkos8finalizeEv"},
+        {"kokkos_finalize", "_Z15kokkos_finalizev"},
         {"initialize_system", "_Z17initialize_systemiiiPPc"},
         {"finalize_system", "_Z15finalize_systemPv"},
         {"get_N", "_Z5get_NPv"},
@@ -123,6 +123,14 @@ int main(int argc, char* argv[]) {
     // initialize VLC environment
     VLC::Runtime vlc;
     vlc.initialize();
+
+    CUresult result = cuInit(0);
+    if (result != CUDA_SUCCESS) {
+      const char* errorString = nullptr;
+      cuGetErrorString(result, &errorString);
+      std::cerr << "CUDA initialization failed: " << errorString << std::endl;
+      return 1;
+    }
 
     // register functions used in VLC
     register_functions();

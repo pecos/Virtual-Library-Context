@@ -8,7 +8,7 @@ LIB_PATH=/home/yyan/vlc/cudart_shim:$EXAMPLE_FOLDER
 
 
 cd $EXAMPLE_FOLDER
-make $1 -j32
+# make $1 -j32
 
 if [ "$1" == "heat3d_mpi" ]; then
 /home/yyan/openmpi-5.0.3/build/bin/mpirun -np 2 $EXAMPLE_FOLDER/${1}

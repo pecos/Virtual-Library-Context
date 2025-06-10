@@ -13,9 +13,14 @@ cmake -S ${srcdir} -B ${builddir} \
   -DCMAKE_INSTALL_PREFIX=${kokkos_install_prefix} \
   -DCMAKE_CXX_COMPILER=${compiler_used_to_build_kokkos} \
   -DKokkos_ENABLE_CUDA=ON \
-  -DKokkos_ENABLE_CUDA_LAMBDA=ON \
-  -DKokkos_ARCH_PASCAL60=ON
+  -DKokkos_ARCH_PASCAL60=ON \
+  -DBUILD_SHARED_LIBS=ON
+  # -DKokkos_ENABLE_CUDA_RELOCATABLE_DEVICE_CODE=ON
+# -DKokkos_ENABLE_CUDA_LAMBDA=ON \
 
+
+cmake --build ${builddir} -j8
+cmake --install ${builddir} --prefix ${kokkos_install_prefix}
 # ../generate_makefile.bash --cxxflags="-fPIC" --ldflags="-fPIC" --arch=Pascal60 --prefix=../lib --with-cuda --with-cuda-options="enable_lambda"
 
 # make -j32 kokkoslib

@@ -1,4 +1,6 @@
 cudaSetDevice
+cudaDriverGetVersion
+cudaRuntimeGetVersion
 cudaMalloc
 cudaMemcpy
 cudaMemset
