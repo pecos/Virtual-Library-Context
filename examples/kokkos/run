@@ -1,0 +1,5 @@
+cd build
+cmake -DKokkos_ROOT=/home/yyan/vlc/examples/kokkos/lib/kokkos/install/lib/cmake/Kokkos/ ..
+make -j8
+rm *.tmp
+LD_LIBRARY_PATH=/home/yyan/vlc/cuda_shim:/home/yyan/vlc/cudart_shim:/home/yyan/vlc/examples/kokkos/build ./heat3d_vlc

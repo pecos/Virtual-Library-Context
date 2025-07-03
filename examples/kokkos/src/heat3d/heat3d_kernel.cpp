@@ -12,7 +12,7 @@
 
 template <class ExecSpace>
 struct SpaceInstance {
-  static ExecSpace create() { return ExecSpace(); }
+  static ExecSpace create(int me) { return ExecSpace(); }
   static void destroy(ExecSpace&) {}
   static bool overlap() { return false; }
 };
@@ -20,13 +20,15 @@ struct SpaceInstance {
 #ifdef KOKKOS_ENABLE_CUDA
 template <>
 struct SpaceInstance<Kokkos::Cuda> {
-  static Kokkos::Cuda create() {
+  static Kokkos::Cuda create(int me) {
     cudaStream_t stream;
+    cudaSetDevice(me);  // me equals to device id
     cudaStreamCreate(&stream);
     return Kokkos::Cuda(stream);
   }
-  static void destroy(Kokkos::Cuda& space) {
+  static void destroy(int me, Kokkos::Cuda& space) {
     cudaStream_t stream = space.cuda_stream();
+    cudaSetDevice(me);
     cudaStreamDestroy(stream);
   }
   static bool overlap() {
@@ -167,23 +169,23 @@ struct System {
     q       = 1.0;
     sigma   = 1.0;
     P       = 1.0;
-    E_left  = SpaceInstance<Kokkos::DefaultExecutionSpace>::create();
-    E_right = SpaceInstance<Kokkos::DefaultExecutionSpace>::create();
-    E_up    = SpaceInstance<Kokkos::DefaultExecutionSpace>::create();
-    E_down  = SpaceInstance<Kokkos::DefaultExecutionSpace>::create();
-    E_front = SpaceInstance<Kokkos::DefaultExecutionSpace>::create();
-    E_back  = SpaceInstance<Kokkos::DefaultExecutionSpace>::create();
-    E_bulk  = SpaceInstance<Kokkos::DefaultExecutionSpace>::create();
+    E_left  = SpaceInstance<Kokkos::DefaultExecutionSpace>::create(me);
+    E_right = SpaceInstance<Kokkos::DefaultExecutionSpace>::create(me);
+    E_up    = SpaceInstance<Kokkos::DefaultExecutionSpace>::create(me);
+    E_down  = SpaceInstance<Kokkos::DefaultExecutionSpace>::create(me);
+    E_front = SpaceInstance<Kokkos::DefaultExecutionSpace>::create(me);
+    E_back  = SpaceInstance<Kokkos::DefaultExecutionSpace>::create(me);
+    E_bulk  = SpaceInstance<Kokkos::DefaultExecutionSpace>::create(me);
   }
 
   void destroy_exec_spaces() {
-    SpaceInstance<Kokkos::DefaultExecutionSpace>::destroy(E_left);
-    SpaceInstance<Kokkos::DefaultExecutionSpace>::destroy(E_right);
-    SpaceInstance<Kokkos::DefaultExecutionSpace>::destroy(E_front);
-    SpaceInstance<Kokkos::DefaultExecutionSpace>::destroy(E_back);
-    SpaceInstance<Kokkos::DefaultExecutionSpace>::destroy(E_up);
-    SpaceInstance<Kokkos::DefaultExecutionSpace>::destroy(E_down);
-    SpaceInstance<Kokkos::DefaultExecutionSpace>::destroy(E_bulk);
+    SpaceInstance<Kokkos::DefaultExecutionSpace>::destroy(comm.me, E_left);
+    SpaceInstance<Kokkos::DefaultExecutionSpace>::destroy(comm.me, E_right);
+    SpaceInstance<Kokkos::DefaultExecutionSpace>::destroy(comm.me, E_front);
+    SpaceInstance<Kokkos::DefaultExecutionSpace>::destroy(comm.me, E_back);
+    SpaceInstance<Kokkos::DefaultExecutionSpace>::destroy(comm.me, E_up);
+    SpaceInstance<Kokkos::DefaultExecutionSpace>::destroy(comm.me, E_down);
+    SpaceInstance<Kokkos::DefaultExecutionSpace>::destroy(comm.me, E_bulk);
   }
 
   void setup_subdomain() {
@@ -563,8 +565,11 @@ void heat3d_phase1(void *sys, int t) {
   System *system = static_cast<System *>(sys);
   if (t > system->N / 2) system->P = 0.0;
   system->pack_T_halo();       // Overlap O1
+  Kokkos::fence();
+  std::cout << "pack T halo done" << std::endl;
   system->compute_inner_dT();  // Overlap O1
   Kokkos::fence();
+  std::cout << "compute inner dT done" << std::endl;
 }
 
 void heat3d_exchange_data(void *this_sys, void *other_sys) {

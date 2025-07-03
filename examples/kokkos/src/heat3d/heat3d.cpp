@@ -27,17 +27,13 @@
 
 pthread_barrier_t barrier;
 
-int NUM_DEVICE = 1; // only support at most one GPUs
+int NUM_DEVICE = 2; // only support at most one GPUs
 
 // shared data
 std::vector<void *> heat3d_sys(NUM_DEVICE, NULL);
 std::vector<double> local_T_ave(NUM_DEVICE, 0);
 
 void launch(int system_id, int dev_id, int argc, char* argv[]) {
-    kokkos_initialize(dev_id);
-    heat3d_sys[dev_id] = initialize_system(dev_id, NUM_DEVICE, argc, argv);
-    std::cout << "heat3d system " << system_id << " initialized!" << std::endl;
-   
     int I = get_I(heat3d_sys[dev_id]);
     int N = get_N(heat3d_sys[dev_id]);
 
@@ -54,7 +50,7 @@ void launch(int system_id, int dev_id, int argc, char* argv[]) {
         local_T_ave[dev_id] = heat3d_phase2(heat3d_sys[dev_id]);
         pthread_barrier_wait(&barrier);
         double T_ave = std::reduce(local_T_ave.begin(), local_T_ave.end());
-        // std::cout << "T_ave=" << T_ave << std::endl;
+        std::cout << "T_ave=" << T_ave << std::endl;
         if ((t % I == 0 || t == N) && (dev_id == 0)) {
             auto time = std::chrono::high_resolution_clock::now();
             if ((t == N) && (dev_id == 0)) {
@@ -65,15 +61,20 @@ void launch(int system_id, int dev_id, int argc, char* argv[]) {
             }
         }
     }
-
-    finalize_system(heat3d_sys[dev_id]);
-
-    kokkos_finalize();
 }
 
 int main(int argc, char* argv[]) {
     std::cout << "Begin!" << std::endl;
     int num_work = NUM_DEVICE;
+
+    kokkos_initialize(0);
+
+    for (int dev_id = 0; dev_id < NUM_DEVICE; dev_id++) {
+        heat3d_sys[dev_id] = initialize_system(dev_id, NUM_DEVICE, argc, argv);
+        std::cout << "heat3d system " << dev_id << " initialized!" << std::endl;
+    }
+
+    checkCudaErrors(cudaSetDevice(0));
 
     pthread_barrier_init(&barrier, NULL, num_work);
 
@@ -86,6 +87,11 @@ int main(int argc, char* argv[]) {
     for (int i = 0; i < num_work; i++) {
         t[i].join();
     }
+
+    for (int dev_id = 0; dev_id < NUM_DEVICE; dev_id++) {
+        finalize_system(heat3d_sys[dev_id]);
+    }
+    kokkos_finalize();
 
     return 0;
 }
