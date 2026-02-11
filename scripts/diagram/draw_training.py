@@ -1,4 +1,7 @@
 import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.rcParams['pdf.fonttype'] = 42
+matplotlib.rcParams['ps.fonttype'] = 42
 
 instances = ["1", "2", "4"]
 vlcs_speedup = [1.00, 3.22, 6.43]

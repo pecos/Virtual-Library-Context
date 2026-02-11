@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
-from matplotlib.patches import Patch
-import numpy as np
-import textwrap
+import matplotlib
+matplotlib.rcParams['pdf.fonttype'] = 42
+matplotlib.rcParams['ps.fonttype'] = 42
 
 # Data: Speed-up ratios for different applications
 applications = ['Multiphysics', 'N-Body', 'Scientific\nML', 'Data\nAssimilation']
@@ -43,7 +43,7 @@ plt.gca().spines['right'].set_visible(False)
 # plt.gca().spines['bottom'].set_visible(False)
 
 # Add gridlines for clarity
-plt.grid(True)
+plt.grid(axis='y', linestyle='--', alpha=0.7)
 
 # Display the plot
 plt.tight_layout()  # Adjusts layout to prevent label overlap
