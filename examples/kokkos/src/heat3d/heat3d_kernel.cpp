@@ -566,10 +566,8 @@ void heat3d_phase1(void *sys, int t) {
   if (t > system->N / 2) system->P = 0.0;
   system->pack_T_halo();       // Overlap O1
   Kokkos::fence();
-  std::cout << "pack T halo done" << std::endl;
   system->compute_inner_dT();  // Overlap O1
   Kokkos::fence();
-  std::cout << "compute inner dT done" << std::endl;
 }
 
 void heat3d_exchange_data(void *this_sys, void *other_sys) {
